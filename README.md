@@ -31,12 +31,28 @@ comply scan --framework soc2
 
 Existing tools (Vanta, Drata, Secureframe) cost $15–30k/year and require a dedicated compliance team to operate. ComplyKit is built for **engineering-led startups** that need to close their first enterprise deal.
 
-| | Vanta / Drata | ComplyKit |
-|---|---|---|
-| Price | $15–30k/year | Free CLI · $299/mo Pro |
-| Onboarding | Weeks | `brew install complykit && comply init` |
-| Output | Dashboard | Terminal + JSON + PDF + Web UI |
-| Open source | No | Yes (Apache 2.0) |
+| | Vanta / Drata | ComplyKit Free CLI | ComplyKit Pro |
+|---|---|---|---|
+| Price | $15–30k/year | Free forever | $299/month |
+| Onboarding | Weeks | 2 minutes | 2 minutes |
+| Scans | Automated | Unlimited | Unlimited |
+| Frameworks | SOC2 / HIPAA | SOC2 · HIPAA · CIS | SOC2 · HIPAA · CIS |
+| Terminal + JSON + PDF output | No | ✓ | ✓ |
+| Policy document templates | Add-on | ✓ | ✓ |
+| Remediation steps (`comply fix`) | Limited | ✓ | ✓ |
+| Local evidence vault | No | ✓ (local only) | ✓ (cloud-hosted) |
+| Web dashboard | Hosted | localhost only | Hosted (any browser) |
+| Auditor share links | No | — | ✓ (JWT-signed, expiring) |
+| Slack / email alerts | Add-on | — | ✓ |
+| Team seats | Unlimited | 1 | 5 |
+| Open source | No | Apache 2.0 | Apache 2.0 |
+
+**The key difference:** Free CLI runs entirely on your machine — perfect for scanning
+and fixing issues yourself. Pro adds the hosted layer: a dashboard your whole team
+can access, share links you send to auditors, and alerts that fire when something
+regresses — without keeping your laptop open.
+
+> See [full pricing breakdown →](docs/pricing.md)
 
 ---
 
