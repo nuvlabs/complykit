@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ComplyKit Dashboard</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --brand: #6366f1; --brand-dark: #4f46e5;
+      --pass: #22c55e; --fail: #ef4444; --skip: #f59e0b;
+      --crit: #dc2626; --high: #ea580c; --medium: #ca8a04;
+      --bg: #0f172a; --surface: #1e293b; --border: #334155;
+      --text: #f1f5f9; --muted: #94a3b8;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+           background: var(--bg); color: var(--text); min-height: 100vh; }
+    header { background: var(--surface); border-bottom: 1px solid var(--border);
+             padding: 0 2rem; display: flex; align-items: center; gap: 1rem; height: 56px; }
+    header h1 { font-size: 1.1rem; font-weight: 700; color: var(--brand); letter-spacing: -0.02em; }
+    header span { color: var(--muted); font-size: 0.85rem; }
+    nav { display: flex; gap: 0.25rem; margin-left: auto; }
+    nav button { background: none; border: 1px solid var(--border); color: var(--muted);
+                 padding: 0.3rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
+                 transition: all 0.15s; }
+    nav button:hover, nav button.active { background: var(--brand); border-color: var(--brand); color: #fff; }
+    .container { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1rem; }
+    .score-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+    .card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
+    .card .value { font-size: 2rem; font-weight: 700; line-height: 1; }
+    .card .sub { font-size: 0.75rem; color: var(--muted); margin-top: 0.3rem; }
+    .v-pass { color: var(--pass); } .v-fail { color: var(--fail); } .v-skip { color: var(--skip); }
+    .score-gauge { position: relative; height: 6px; background: var(--border); border-radius: 3px; margin-top: 0.75rem; }
+    .score-gauge-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+    .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
+    .tab { background: none; border: none; color: var(--muted); padding: 0.4rem 0.8rem; cursor: pointer;
+           font-size: 0.85rem; border-radius: 6px; transition: all 0.15s; }
+    .tab:hover { color: var(--text); }
+    .tab.active { background: var(--brand); color: #fff; }
+    .findings-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .findings-table th { text-align: left; padding: 0.5rem 0.75rem; color: var(--muted);
+                         font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
+                         border-bottom: 1px solid var(--border); }
+    .findings-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .findings-table tr:last-child td { border-bottom: none; }
+    .findings-table tr:hover td { background: rgba(99,102,241,0.06); }
+    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem;
+             font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+    .badge-pass { background: rgba(34,197,94,0.15); color: var(--pass); }
+    .badge-fail { background: rgba(239,68,68,0.15); color: var(--fail); }
+    .badge-skip { background: rgba(245,158,11,0.15); color: var(--skip); }
+    .badge-critical { background: rgba(220,38,38,0.15); color: var(--crit); }
+    .badge-high { background: rgba(234,88,12,0.15); color: var(--high); }
+    .badge-medium { background: rgba(202,138,4,0.15); color: var(--medium); }
+    .badge-low { background: rgba(148,163,184,0.15); color: var(--muted); }
+    .int-tag { background: rgba(99,102,241,0.12); color: var(--brand); border-radius: 4px;
+               padding: 0.15rem 0.45rem; font-size: 0.7rem; font-weight: 600; }
+    .remediation { background: var(--bg); border-left: 3px solid var(--brand);
+                   border-radius: 0 6px 6px 0; padding: 0.75rem 1rem; margin-top: 0.5rem;
+                   font-size: 0.8rem; color: var(--muted); white-space: pre-wrap; font-family: monospace;
+                   display: none; }
+    tr.expanded .remediation { display: block; }
+    .expand-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.75rem; padding: 0.2rem 0.4rem; border-radius: 4px; }
+    .expand-btn:hover { background: var(--border); color: var(--text); }
+    .history-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .history-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+                    padding: 0.75rem 1rem; display: flex; align-items: center; gap: 1rem; cursor: pointer;
+                    transition: border-color 0.15s; }
+    .history-item:hover { border-color: var(--brand); }
+    .history-item .ts { font-size: 0.8rem; color: var(--muted); min-width: 170px; }
+    .history-item .fw { font-size: 0.75rem; background: rgba(99,102,241,0.12); color: var(--brand);
+                        border-radius: 4px; padding: 0.1rem 0.4rem; font-weight: 600; text-transform: uppercase; }
+    .history-item .score-num { font-size: 1.1rem; font-weight: 700; margin-left: auto; }
+    .mini-bar { height: 4px; width: 80px; background: var(--border); border-radius: 2px; overflow: hidden; }
+    .mini-bar-fill { height: 100%; border-radius: 2px; }
+    .empty { text-align: center; padding: 3rem; color: var(--muted); }
+    .empty code { display: block; background: var(--surface); border: 1px solid var(--border);
+                  border-radius: 8px; padding: 0.75rem 1.5rem; margin-top: 1rem; font-size: 0.85rem;
+                  color: var(--brand); display: inline-block; }
+    .refresh-btn { background: var(--brand); border: none; color: #fff; padding: 0.4rem 1rem;
+                   border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-left: auto; }
+    .refresh-btn:hover { background: var(--brand-dark); }
+    .controls-list { font-size: 0.7rem; color: var(--muted); }
+    .section-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+    .section-header h2 { font-size: 0.95rem; font-weight: 600; }
+  </style>
+</head>
+<body>
+<header>
+  <h1>ComplyKit</h1>
+  <span id="last-scan">Loading...</span>
+  <nav>
+    <button class="active" onclick="showTab('overview')">Overview</button>
+    <button onclick="showTab('findings')">Findings</button>
+    <button onclick="showTab('history')">History</button>
+  </nav>
+  <button class="refresh-btn" onclick="load()">↻ Refresh</button>
+</header>
+
+<div class="container">
+
+  <!-- Overview tab -->
+  <div id="tab-overview">
+    <div class="score-bar" id="score-cards"></div>
+    <div class="card">
+      <div class="section-header">
+        <h2>Findings by Integration</h2>
+      </div>
+      <div id="integration-groups"></div>
+    </div>
+  </div>
+
+  <!-- Findings tab -->
+  <div id="tab-findings" style="display:none">
+    <div class="card" style="overflow-x:auto">
+      <div class="section-header">
+        <h2>All Findings</h2>
+        <div style="margin-left:auto;display:flex;gap:0.5rem">
+          <button class="tab active" onclick="filterFindings('all',this)">All</button>
+          <button class="tab" onclick="filterFindings('fail',this)">Failures</button>
+          <button class="tab" onclick="filterFindings('pass',this)">Passing</button>
+        </div>
+      </div>
+      <table class="findings-table">
+        <thead>
+          <tr>
+            <th>Status</th><th>Check</th><th>Integration</th><th>Severity</th><th>Controls</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="findings-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- History tab -->
+  <div id="tab-history" style="display:none">
+    <div class="card">
+      <div class="section-header"><h2>Scan History</h2></div>
+      <div class="history-list" id="history-list"></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+let allFindings = [];
+let currentFilter = 'all';
+
+async function load() {
+  try {
+    const [latest, history] = await Promise.all([
+      fetch('/api/latest').then(r => r.json()),
+      fetch('/api/history').then(r => r.json())
+    ]);
+    render(latest, history);
+  } catch(e) {
+    document.getElementById('last-scan').textContent = 'Error loading data';
+  }
+}
+
+function render(latest, history) {
+  if (!latest) {
+    document.getElementById('tab-overview').innerHTML =
+      '<div class="empty"><p>No scans yet.</p><code>comply scan --framework soc2</code></div>';
+    return;
+  }
+
+  document.getElementById('last-scan').textContent =
+    `Last scan: ${new Date(latest.collected_at).toLocaleString()} · ${latest.framework.toUpperCase()}`;
+
+  renderScoreCards(latest);
+  allFindings = latest.findings || [];
+  renderFindings(allFindings);
+  renderIntegrationGroups(allFindings);
+  renderHistory(history || []);
+}
+
+function scoreColor(s) {
+  if (s >= 80) return 'var(--pass)';
+  if (s >= 50) return 'var(--skip)';
+  return 'var(--fail)';
+}
+
+function renderScoreCards(r) {
+  const total = r.passed + r.failed + r.skipped;
+  document.getElementById('score-cards').innerHTML = `
+    <div class="card">
+      <div class="label">Compliance Score</div>
+      <div class="value" style="color:${scoreColor(r.score)}">${r.score}</div>
+      <div class="sub">out of 100</div>
+      <div class="score-gauge">
+        <div class="score-gauge-fill" style="width:${r.score}%;background:${scoreColor(r.score)}"></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="label">Passed</div>
+      <div class="value v-pass">${r.passed}</div>
+      <div class="sub">of ${total} checks</div>
+    </div>
+    <div class="card">
+      <div class="label">Failed</div>
+      <div class="value v-fail">${r.failed}</div>
+      <div class="sub">${r.failed > 0 ? 'action required' : 'none — great!'}</div>
+    </div>
+    <div class="card">
+      <div class="label">Skipped</div>
+      <div class="value v-skip">${r.skipped}</div>
+      <div class="sub">insufficient access</div>
+    </div>`;
+}
+
+function renderIntegrationGroups(findings) {
+  const groups = {};
+  for (const f of findings) {
+    const k = f.integration || 'Other';
+    if (!groups[k]) groups[k] = { pass: 0, fail: 0 };
+    if (f.status === 'pass') groups[k].pass++;
+    else if (f.status === 'fail') groups[k].fail++;
+  }
+
+  let html = '';
+  for (const [name, counts] of Object.entries(groups)) {
+    const total = counts.pass + counts.fail;
+    const pct = total ? Math.round(counts.pass / total * 100) : 0;
+    html += `<div style="display:flex;align-items:center;gap:1rem;padding:0.6rem 0;border-bottom:1px solid var(--border)">
+      <span class="int-tag" style="min-width:110px">${name}</span>
+      <span style="color:var(--pass);font-size:0.8rem">✓ ${counts.pass}</span>
+      <span style="color:var(--fail);font-size:0.8rem">✗ ${counts.fail}</span>
+      <div class="mini-bar" style="margin-left:auto">
+        <div class="mini-bar-fill" style="width:${pct}%;background:${scoreColor(pct)}"></div>
+      </div>
+      <span style="font-size:0.8rem;min-width:40px;text-align:right;color:${scoreColor(pct)}">${pct}%</span>
+    </div>`;
+  }
+  document.getElementById('integration-groups').innerHTML = html || '<div class="empty">No findings</div>';
+}
+
+function renderFindings(findings) {
+  const filtered = currentFilter === 'all' ? findings : findings.filter(f => f.status === currentFilter);
+  const tbody = document.getElementById('findings-tbody');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty">No findings</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtered.map((f, i) => {
+    const controls = (f.controls || []).join('  ·  ');
+    const rem = f.remediation ? f.remediation.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
+    return `<tr id="row-${i}">
+      <td><span class="badge badge-${f.status}">${f.status}</span></td>
+      <td style="max-width:320px"><div style="font-weight:500">${f.title || f.id}</div>
+        <div style="font-size:0.72rem;color:var(--muted)">${f.id}</div>
+        ${rem ? `<div class="remediation" id="rem-${i}">${rem}</div>` : ''}
+      </td>
+      <td><span class="int-tag">${f.integration || '—'}</span></td>
+      <td>${f.severity ? `<span class="badge badge-${f.severity}">${f.severity}</span>` : '—'}</td>
+      <td class="controls-list">${controls || '—'}</td>
+      <td>${rem ? `<button class="expand-btn" onclick="toggleRem(${i})">▸ fix</button>` : ''}</td>
+    </tr>`;
+  }).join('');
+}
+
+function toggleRem(i) {
+  const rem = document.getElementById(`rem-${i}`);
+  const btn = rem.closest('tr').querySelector('.expand-btn');
+  const showing = rem.style.display === 'block';
+  rem.style.display = showing ? 'none' : 'block';
+  btn.textContent = showing ? '▸ fix' : '▾ hide';
+}
+
+function filterFindings(filter, btn) {
+  currentFilter = filter;
+  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  renderFindings(allFindings);
+}
+
+function renderHistory(history) {
+  const list = document.getElementById('history-list');
+  if (!history.length) {
+    list.innerHTML = '<div class="empty">No scan history yet.</div>';
+    return;
+  }
+  list.innerHTML = history.map(r => `
+    <div class="history-item" onclick="loadRecord('${r.id}')">
+      <span class="ts">${new Date(r.collected_at).toLocaleString()}</span>
+      <span class="fw">${r.framework}</span>
+      <span style="color:var(--pass);font-size:0.8rem">✓ ${r.passed}</span>
+      <span style="color:var(--fail);font-size:0.8rem">✗ ${r.failed}</span>
+      <div class="mini-bar">
+        <div class="mini-bar-fill" style="width:${r.score}%;background:${scoreColor(r.score)}"></div>
+      </div>
+      <span class="score-num" style="color:${scoreColor(r.score)}">${r.score}</span>
+    </div>`).join('');
+}
+
+async function loadRecord(id) {
+  const r = await fetch(`/api/record/${id}`).then(res => res.json());
+  allFindings = r.findings || [];
+  renderScoreCards(r);
+  renderFindings(allFindings);
+  renderIntegrationGroups(allFindings);
+  document.getElementById('last-scan').textContent =
+    `Viewing: ${id} · ${r.framework.toUpperCase()}`;
+  showTab('findings');
+}
+
+function showTab(name) {
+  ['overview','findings','history'].forEach(t => {
+    document.getElementById('tab-'+t).style.display = t === name ? '' : 'none';
+  });
+  document.querySelectorAll('nav button').forEach((b, i) => {
+    b.classList.toggle('active', ['overview','findings','history'][i] === name);
+  });
+}
+
+load();
+setInterval(load, 60000);
+</script>
+</body>
+</html>

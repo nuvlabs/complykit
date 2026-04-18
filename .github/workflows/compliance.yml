@@ -1,0 +1,109 @@
+name: Compliance Scan
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  schedule:
+    - cron: '0 8 * * 1'   # weekly Monday 8am UTC
+  workflow_dispatch:
+
+jobs:
+  compliance:
+    name: ComplyKit — ${{ inputs.framework || 'soc2' }}
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write      # for AWS OIDC
+      contents: read
+      pull-requests: write # to post PR comment
+
+    env:
+      FRAMEWORK: ${{ inputs.framework || 'soc2' }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.22'
+          cache: true
+
+      - name: Install ComplyKit
+        run: |
+          go install github.com/complykit/complykit@latest || \
+          (git clone https://github.com/complykit/complykit /tmp/complykit && \
+           cd /tmp/complykit && go build -o /usr/local/bin/comply .)
+
+      - name: Configure AWS credentials
+        if: ${{ env.AWS_ROLE_ARN != '' }}
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Run compliance scan
+        id: scan
+        env:
+          GITHUB_TOKEN: ${{ secrets.COMPLY_GITHUB_TOKEN }}
+          GITHUB_OWNER: ${{ github.repository_owner }}
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+        run: |
+          comply scan \
+            --framework ${{ env.FRAMEWORK }} \
+            --output scan-report.json \
+            | tee scan-output.txt
+
+          # extract score for downstream steps
+          SCORE=$(jq '.score' scan-report.json)
+          FAILED=$(jq '.summary.failed' scan-report.json)
+          echo "score=$SCORE" >> $GITHUB_OUTPUT
+          echo "failed=$FAILED" >> $GITHUB_OUTPUT
+
+      - name: Upload scan report
+        uses: actions/upload-artifact@v4
+        with:
+          name: compliance-report-${{ github.sha }}
+          path: |
+            scan-report.json
+          retention-days: 90
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const score = ${{ steps.scan.outputs.score }};
+            const failed = ${{ steps.scan.outputs.failed }};
+            const emoji = score >= 80 ? '✅' : score >= 50 ? '⚠️' : '❌';
+            const body = [
+              `## ${emoji} ComplyKit — ${{ env.FRAMEWORK }} Scan`,
+              ``,
+              `| Metric | Value |`,
+              `|--------|-------|`,
+              `| Score | **${score}/100** |`,
+              `| Failed | ${failed} |`,
+              `| Framework | ${{ env.FRAMEWORK }} |`,
+              ``,
+              failed > 0
+                ? `> **${failed} compliance failure(s) detected.** Run \`comply fix\` locally for remediation steps.`
+                : `> All checks passing. No compliance regressions.`,
+              ``,
+              `<sub>Scan triggered by commit \`${{ github.sha }}\`</sub>`,
+            ].join('\n');
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body,
+            });
+
+      - name: Fail on critical issues
+        if: ${{ steps.scan.outputs.failed > 0 }}
+        run: |
+          echo "::error::${{ steps.scan.outputs.failed }} compliance check(s) failed."
+          echo "Run 'comply fix' locally to see remediation steps."
+          exit 1
