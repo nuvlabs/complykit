@@ -32,10 +32,7 @@ jobs:
           cache: true
 
       - name: Install ComplyKit
-        run: |
-          go install github.com/complykit/complykit@latest || \
-          (git clone https://github.com/complykit/complykit /tmp/complykit && \
-           cd /tmp/complykit && go build -o /usr/local/bin/comply .)
+        run: go build -o /usr/local/bin/comply .
 
       - name: Configure AWS credentials
         if: ${{ env.AWS_ROLE_ARN != '' }}
@@ -56,7 +53,6 @@ jobs:
             --output scan-report.json \
             | tee scan-output.txt
 
-          # extract score for downstream steps
           SCORE=$(jq '.score' scan-report.json)
           FAILED=$(jq '.summary.failed' scan-report.json)
           echo "score=$SCORE" >> $GITHUB_OUTPUT
@@ -66,8 +62,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: compliance-report-${{ github.sha }}
-          path: |
-            scan-report.json
+          path: scan-report.json
           retention-days: 90
 
       - name: Comment on PR
@@ -93,7 +88,6 @@ jobs:
               ``,
               `<sub>Scan triggered by commit \`${{ github.sha }}\`</sub>`,
             ].join('\n');
-
             github.rest.issues.createComment({
               issue_number: context.issue.number,
               owner: context.repo.owner,
