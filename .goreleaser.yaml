@@ -1,0 +1,51 @@
+version: 2
+
+project_name: comply
+
+before:
+  hooks:
+    - go mod tidy
+
+builds:
+  - main: .
+    binary: comply
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X main.version={{.Version}}
+
+archives:
+  - formats: [tar.gz]
+    name_template: "{{ .ProjectName }}_{{ .Os }}_{{ .Arch }}"
+    format_overrides:
+      - goos: windows
+        formats: [zip]
+
+checksum:
+  name_template: "checksums.txt"
+
+brews:
+  - name: complykit
+    repository:
+      owner: nuvlabs
+      name: homebrew-tap
+      token: "{{ .Env.HOMEBREW_TAP_TOKEN }}"
+    homepage: "https://github.com/nuvlabs/complykit"
+    description: "Compliance-as-code CLI for startups · SOC 2 · HIPAA · CIS"
+    license: "MIT"
+    install: |
+      bin.install "comply"
+    test: |
+      system "#{bin}/comply", "--help"
+
+release:
+  github:
+    owner: nuvlabs
+    name: complykit
