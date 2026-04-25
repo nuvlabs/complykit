@@ -41,7 +41,11 @@
     .findings-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     .findings-table th { text-align: left; padding: 0.5rem 0.75rem; color: var(--muted);
                          font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
-                         border-bottom: 1px solid var(--border); }
+                         border-bottom: 1px solid var(--border); cursor: pointer; user-select: none; }
+    .findings-table th:hover { color: var(--text); background: rgba(99,102,241,0.08); }
+    .findings-table th.sorted { color: var(--brand); }
+    .findings-table th .sort-icon { margin-left: 0.3rem; opacity: 0.5; }
+    .findings-table th.sorted .sort-icon { opacity: 1; }
     .findings-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
     .findings-table tr:last-child td { border-bottom: none; }
     .findings-table tr:hover td { background: rgba(99,102,241,0.06); }
@@ -117,15 +121,21 @@
       <div class="section-header">
         <h2>All Findings</h2>
         <div style="margin-left:auto;display:flex;gap:0.5rem">
-          <button class="tab active" onclick="filterFindings('all',this)">All</button>
-          <button class="tab" onclick="filterFindings('fail',this)">Failures</button>
-          <button class="tab" onclick="filterFindings('pass',this)">Passing</button>
+          <button class="tab active" data-filter="all" onclick="filterFindings('all',this)">All</button>
+          <button class="tab" data-filter="fail" onclick="filterFindings('fail',this)">Failures</button>
+          <button class="tab" data-filter="pass" onclick="filterFindings('pass',this)">Passing</button>
+          <button class="tab" data-filter="skip" onclick="filterFindings('skip',this)">Skipped</button>
         </div>
       </div>
       <table class="findings-table">
         <thead>
           <tr>
-            <th>Status</th><th>Check</th><th>Integration</th><th>Severity</th><th>Controls</th><th></th>
+            <th data-sort="status" onclick="sortFindings('status',this)">Status <span class="sort-icon">↕</span></th>
+            <th data-sort="title" onclick="sortFindings('title',this)">Check <span class="sort-icon">↕</span></th>
+            <th data-sort="integration" onclick="sortFindings('integration',this)">Integration <span class="sort-icon">↕</span></th>
+            <th data-sort="severity" onclick="sortFindings('severity',this)">Severity <span class="sort-icon">↕</span></th>
+            <th>Controls</th>
+            <th></th>
           </tr>
         </thead>
         <tbody id="findings-tbody"></tbody>
@@ -146,6 +156,11 @@
 <script>
 let allFindings = [];
 let currentFilter = 'all';
+let currentSort = { field: null, asc: true };
+
+// Severity order for sorting
+const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, '': 4 };
+const statusOrder = { fail: 0, pass: 1, skip: 2 };
 
 async function load() {
   try {
@@ -237,7 +252,46 @@ function renderIntegrationGroups(findings) {
 }
 
 function renderFindings(findings) {
-  const filtered = currentFilter === 'all' ? findings : findings.filter(f => f.status === currentFilter);
+  let filtered = findings;
+  
+  // Apply filter
+  if (currentFilter !== 'all') {
+    filtered = findings.filter(f => f.status === currentFilter);
+  }
+  
+  // Apply sort
+  if (currentSort.field) {
+    filtered = [...filtered].sort((a, b) => {
+      let valA, valB;
+      
+      switch (currentSort.field) {
+        case 'status':
+          valA = statusOrder[a.status] ?? 99;
+          valB = statusOrder[b.status] ?? 99;
+          break;
+        case 'severity':
+          valA = severityOrder[a.severity?.toLowerCase()] ?? 99;
+          valB = severityOrder[b.severity?.toLowerCase()] ?? 99;
+          break;
+        case 'integration':
+          valA = (a.integration || 'zzz').toLowerCase();
+          valB = (b.integration || 'zzz').toLowerCase();
+          break;
+        case 'title':
+          valA = (a.title || a.id || '').toLowerCase();
+          valB = (b.title || b.id || '').toLowerCase();
+          break;
+        default:
+          valA = a[currentSort.field] || '';
+          valB = b[currentSort.field] || '';
+      }
+      
+      if (valA < valB) return currentSort.asc ? -1 : 1;
+      if (valA > valB) return currentSort.asc ? 1 : -1;
+      return 0;
+    });
+  }
+  
   const tbody = document.getElementById('findings-tbody');
   if (!filtered.length) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty">No findings</td></tr>';
@@ -261,6 +315,28 @@ function renderFindings(findings) {
   }).join('');
 }
 
+function sortFindings(field, th) {
+  // Toggle sort direction if same field, otherwise start ascending
+  if (currentSort.field === field) {
+    currentSort.asc = !currentSort.asc;
+  } else {
+    currentSort.field = field;
+    currentSort.asc = true;
+  }
+  
+  // Update header styling
+  document.querySelectorAll('.findings-table th').forEach(h => {
+    h.classList.remove('sorted');
+    const icon = h.querySelector('.sort-icon');
+    if (icon) icon.textContent = '↕';
+  });
+  th.classList.add('sorted');
+  const icon = th.querySelector('.sort-icon');
+  if (icon) icon.textContent = currentSort.asc ? '↑' : '↓';
+  
+  renderFindings(allFindings);
+}
+
 function toggleRem(i) {
   const rem = document.getElementById(`rem-${i}`);
   const btn = rem.closest('tr').querySelector('.expand-btn');
@@ -271,7 +347,8 @@ function toggleRem(i) {
 
 function filterFindings(filter, btn) {
   currentFilter = filter;
-  document.querySelectorAll('.tab').forEach(b => b.classList.remove('active'));
+  // Update active state on filter buttons only (not sort buttons)
+  document.querySelectorAll('.section-header .tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderFindings(allFindings);
 }
