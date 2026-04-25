@@ -28,6 +28,9 @@ services:
       - ${HOME}/.kube:/root/.kube:ro
     environment:
       DATABASE_URL: postgres://complykit:${POSTGRES_PASSWORD:-complykit}@postgres:5432/complykit
+      SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
+      SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       ORG_SLUG: ${ORG_SLUG:-default}
       ORG_NAME: ${ORG_NAME:-Default Org}
       AWS_PROFILE: ${AWS_PROFILE:-default}

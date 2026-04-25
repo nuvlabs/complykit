@@ -84,6 +84,18 @@ func runServe(cmd *cobra.Command, args []string) error {
 		}
 		defer database.Close()
 		storageDesc = "postgres"
+
+		// Seed super admin from env vars on every startup (idempotent upsert)
+		if email := os.Getenv("SUPER_ADMIN_EMAIL"); email != "" {
+			pass := os.Getenv("SUPER_ADMIN_PASSWORD")
+			if pass == "" {
+				return fmt.Errorf("SUPER_ADMIN_EMAIL is set but SUPER_ADMIN_PASSWORD is empty")
+			}
+			if err := database.SeedSuperAdmin(ctx, email, pass); err != nil {
+				return fmt.Errorf("seed super admin: %w", err)
+			}
+			color.New(color.FgYellow).Printf("  Super admin: %s\n", email)
+		}
 	} else {
 		fileStore := evidence.NewStore("")
 		store = &fileStoreAdapter{s: fileStore}
@@ -360,6 +372,76 @@ func runServe(cmd *cobra.Command, args []string) error {
 		default:
 			http.Error(w, "unknown format", http.StatusBadRequest)
 		}
+	})
+
+	// ── Admin routes (require admin or super_admin role) ───────────────────────
+
+	// GET /api/admin/users — list users in the caller's org (super_admin sees all)
+	protected.HandleFunc("/api/admin/users", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if database == nil {
+			http.Error(w, `{"error":"requires database"}`, http.StatusServiceUnavailable)
+			return
+		}
+		claims := auth.ClaimsFrom(r)
+		if claims.Role != "admin" && claims.Role != "super_admin" {
+			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+			return
+		}
+		users, err := database.ListUsers(r.Context(), claims.OrgID)
+		if err != nil {
+			http.Error(w, `{"error":"could not list users"}`, http.StatusInternalServerError)
+			return
+		}
+		type userResp struct {
+			ID        string `json:"id"`
+			Email     string `json:"email"`
+			Role      string `json:"role"`
+			OrgID     string `json:"org_id"`
+			CreatedAt string `json:"created_at"`
+		}
+		var out []userResp
+		for _, u := range users {
+			out = append(out, userResp{
+				ID:        u.ID,
+				Email:     u.Email,
+				Role:      u.Role,
+				OrgID:     u.OrgID,
+				CreatedAt: u.CreatedAt.Format("2006-01-02T15:04:05Z"),
+			})
+		}
+		json.NewEncoder(w).Encode(out)
+	})
+
+	// POST /api/admin/reset-password {"email":"...", "password":"..."}
+	protected.HandleFunc("/api/admin/reset-password", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		if database == nil {
+			http.Error(w, `{"error":"requires database"}`, http.StatusServiceUnavailable)
+			return
+		}
+		claims := auth.ClaimsFrom(r)
+		if claims.Role != "admin" && claims.Role != "super_admin" {
+			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+			return
+		}
+		var body struct {
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Email == "" || body.Password == "" {
+			http.Error(w, `{"error":"email and password are required"}`, http.StatusBadRequest)
+			return
+		}
+		if err := database.ResetPassword(r.Context(), claims.OrgID, body.Email, body.Password); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
 	// Mount protected routes behind JWT middleware

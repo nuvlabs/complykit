@@ -111,6 +111,30 @@ var createAPIKeyCmd = &cobra.Command{
 	},
 }
 
+var resetPasswordCmd = &cobra.Command{
+	Use:   "reset-password",
+	Short: "Reset a user's password (super admin — no org restriction)",
+	Example: `  comply admin reset-password --email user@acme.com --password newpass`,
+	RunE: func(cmd *cobra.Command, args []string) error {
+		email, _ := cmd.Flags().GetString("email")
+		password, _ := cmd.Flags().GetString("password")
+		if email == "" || password == "" {
+			return fmt.Errorf("--email and --password are required")
+		}
+		db, err := connectDB()
+		if err != nil {
+			return err
+		}
+		defer db.Close()
+		// Pass SystemOrgID so no org restriction is applied
+		if err := db.ResetPassword(context.Background(), appdb.SystemOrgID, email, password); err != nil {
+			return err
+		}
+		color.Green("✓ Password reset for %s", email)
+		return nil
+	},
+}
+
 func init() {
 	createOrgCmd.Flags().String("slug", "", "URL-safe identifier (e.g. acme)")
 	createOrgCmd.Flags().String("name", "", "Display name")
@@ -123,7 +147,10 @@ func init() {
 	createAPIKeyCmd.Flags().String("org", "", "Org slug")
 	createAPIKeyCmd.Flags().String("name", "", "Key name/label")
 
-	adminCmd.AddCommand(createOrgCmd, createUserCmd, createAPIKeyCmd)
+	resetPasswordCmd.Flags().String("email", "", "User email")
+	resetPasswordCmd.Flags().String("password", "", "New password")
+
+	adminCmd.AddCommand(createOrgCmd, createUserCmd, createAPIKeyCmd, resetPasswordCmd)
 	rootCmd.AddCommand(adminCmd)
 }
 
