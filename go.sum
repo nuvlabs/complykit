@@ -80,8 +80,8 @@ github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.54.11 h1:0iNKMyO0
 github.com/aws/aws-sdk-go-v2/service/elasticloadbalancingv2 v1.54.11/go.mod h1:WdVArS8riWgCC1JoIVmKdqfBfj2+cSWAjBU5dEapMhA=
 github.com/aws/aws-sdk-go-v2/service/guardduty v1.75.1 h1:1EvR73wUFLWBx+23i0LH7LEn1UBzqQZtGQliKi9LGrM=
 github.com/aws/aws-sdk-go-v2/service/guardduty v1.75.1/go.mod h1:gKhKPN+UI85IxfnQzhOdVx6RB4jPV98zlLdoRhOSRPw=
-github.com/aws/aws-sdk-go-v2/service/iam v1.53.7 h1:n9YLiWtX3+6pTLZWvRJmtq5JIB9NA/KFelyCg5fOlTU=
-github.com/aws/aws-sdk-go-v2/service/iam v1.53.7/go.mod h1:sP46Vo6MeJcM4s0ZXcG2PFmfiSyixhIuC/74W52yKuk=
+github.com/aws/aws-sdk-go-v2/service/iam v1.53.8 h1:p0oB4eZfBfBAOasnKvHJOlNcuHVE/ieuWs7uIZgQlyQ=
+github.com/aws/aws-sdk-go-v2/service/iam v1.53.8/go.mod h1:epCaPnGVdiX5ra1lHPfRkVuiQGxrdY8bRI2FBJU+6ok=
 github.com/aws/aws-sdk-go-v2/service/inspector2 v1.47.5 h1:fqE8G6my+uzbK/2/vh0JOhOJT0oOpfvsRzk29bPlLAo=
 github.com/aws/aws-sdk-go-v2/service/inspector2 v1.47.5/go.mod h1:qV3kvZJnNivWgMVdKlKdFLGA0LI4SnsSm1V0DUN5ngI=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.8 h1:HtOTYcbVcGABLOVuPYaIihj6IlkqubBwFj10K5fxRek=
