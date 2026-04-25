@@ -444,6 +444,118 @@ func runServe(cmd *cobra.Command, args []string) error {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 	})
 
+	// GET /api/admin/orgs — list all orgs (super_admin only)
+	protected.HandleFunc("/api/admin/orgs", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if database == nil {
+			http.Error(w, `{"error":"requires database"}`, http.StatusServiceUnavailable)
+			return
+		}
+		claims := auth.ClaimsFrom(r)
+
+		if r.Method == http.MethodGet {
+			if claims.Role != "super_admin" {
+				http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+				return
+			}
+			orgs, err := database.ListOrgs(r.Context())
+			if err != nil {
+				http.Error(w, `{"error":"could not list orgs"}`, http.StatusInternalServerError)
+				return
+			}
+			type orgResp struct {
+				ID        string `json:"id"`
+				Slug      string `json:"slug"`
+				Name      string `json:"name"`
+				Plan      string `json:"plan"`
+				CreatedAt string `json:"created_at"`
+			}
+			var out []orgResp
+			for _, o := range orgs {
+				out = append(out, orgResp{o.ID, o.Slug, o.Name, o.Plan, o.CreatedAt.Format("2006-01-02T15:04:05Z")})
+			}
+			json.NewEncoder(w).Encode(out)
+			return
+		}
+
+		// POST — create org (super_admin only)
+		if r.Method == http.MethodPost {
+			if claims.Role != "super_admin" {
+				http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+				return
+			}
+			var body struct {
+				Slug string `json:"slug"`
+				Name string `json:"name"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Slug == "" || body.Name == "" {
+				http.Error(w, `{"error":"slug and name are required"}`, http.StatusBadRequest)
+				return
+			}
+			org, err := database.CreateOrg(r.Context(), body.Slug, body.Name)
+			if err != nil {
+				http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(org)
+			return
+		}
+
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+	})
+
+	// POST /api/admin/create-user — create user in an org
+	// admin: creates in their own org only
+	// super_admin: can specify any org_id
+	protected.HandleFunc("/api/admin/create-user", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		if database == nil {
+			http.Error(w, `{"error":"requires database"}`, http.StatusServiceUnavailable)
+			return
+		}
+		claims := auth.ClaimsFrom(r)
+		if claims.Role != "admin" && claims.Role != "super_admin" {
+			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+			return
+		}
+		var body struct {
+			Email    string `json:"email"`
+			Password string `json:"password"`
+			Role     string `json:"role"`
+			OrgID    string `json:"org_id"` // only honoured for super_admin
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Email == "" || body.Password == "" {
+			http.Error(w, `{"error":"email and password are required"}`, http.StatusBadRequest)
+			return
+		}
+		if body.Role == "" {
+			body.Role = "member"
+		}
+		// non-super-admins cannot create super_admins or admins in other orgs
+		targetOrgID := claims.OrgID
+		if claims.Role == "super_admin" && body.OrgID != "" {
+			targetOrgID = body.OrgID
+		}
+		if claims.Role != "super_admin" && body.Role == "super_admin" {
+			http.Error(w, `{"error":"cannot assign super_admin role"}`, http.StatusForbidden)
+			return
+		}
+		user, err := database.CreateUser(r.Context(), targetOrgID, body.Email, body.Password, body.Role)
+		if err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusCreated)
+		json.NewEncoder(w).Encode(map[string]string{
+			"id": user.ID, "email": user.Email, "role": user.Role, "org_id": user.OrgID,
+		})
+	})
+
 	// Mount protected routes behind JWT middleware
 	mux.Handle("/api/", corsMiddleware(auth.Require(protected)))
 
