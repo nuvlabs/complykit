@@ -835,7 +835,7 @@ You type: comply scan --framework soc2
          │
          ├── evidence.Store.Save(result)
          │    └── converts result to JSON
-         │    └── writes to .complykit-evidence/scan-20260418-....json
+         │    └── writes to ~/.complykit/evidence/scan-20260418-....json
          │
          └── report.WritePDF(result) (if --pdf flag)
               └── generates PDF file

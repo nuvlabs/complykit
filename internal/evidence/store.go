@@ -12,7 +12,15 @@ import (
 	"github.com/complykit/complykit/internal/engine"
 )
 
-const defaultDir = ".complykit-evidence"
+// DefaultDir returns the default evidence directory: ~/.complykit/evidence
+func DefaultDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		// Fallback to current directory if home is not available
+		return ".complykit/evidence"
+	}
+	return filepath.Join(home, ".complykit", "evidence")
+}
 
 type Record struct {
 	ID          string         `json:"id"`
@@ -31,7 +39,7 @@ type Store struct {
 
 func NewStore(dir string) *Store {
 	if dir == "" {
-		dir = defaultDir
+		dir = DefaultDir()
 	}
 	return &Store{dir: dir}
 }

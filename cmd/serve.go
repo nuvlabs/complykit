@@ -589,8 +589,13 @@ func runServe(cmd *cobra.Command, args []string) error {
 		})
 	})
 
-	// Mount protected routes behind JWT middleware
-	mux.Handle("/api/", corsMiddleware(auth.Require(protected)))
+	// Mount protected routes - use JWT middleware only when database is configured
+	if database != nil {
+		mux.Handle("/api/", corsMiddleware(auth.Require(protected)))
+	} else {
+		// Local mode: no auth required
+		mux.Handle("/api/", corsMiddleware(protected))
+	}
 
 	fmt.Println()
 	bold.Println("  ComplyKit Dashboard")

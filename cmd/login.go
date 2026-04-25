@@ -17,8 +17,11 @@ import (
 var loginCmd = &cobra.Command{
 	Use:   "login",
 	Short: "Authenticate with a ComplyKit server and save credentials",
-	Example: `  comply login --uri https://app.complykit.io
-  comply login --uri http://localhost:8080`,
+	Long: `Authenticate with a ComplyKit server and save credentials.
+
+The URI should point to the ComplyKit API server (port 8080), not the web client (port 3000).`,
+	Example: `  comply login --uri http://localhost:8080   # local Docker server
+  comply login --uri https://api.complykit.io  # production API`,
 	RunE: runLogin,
 }
 
@@ -35,7 +38,7 @@ var logoutCmd = &cobra.Command{
 }
 
 func init() {
-	loginCmd.Flags().String("uri", "", "ComplyKit server URL (e.g. https://app.complykit.io)")
+	loginCmd.Flags().String("uri", "", "ComplyKit API server URL (e.g. http://localhost:8080)")
 	loginCmd.Flags().String("email", "", "Email address (prompted if omitted)")
 	loginCmd.Flags().String("password", "", "Password (prompted if omitted)")
 	rootCmd.AddCommand(loginCmd)

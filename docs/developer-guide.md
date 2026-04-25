@@ -49,7 +49,7 @@ CLI (cobra)
 2. For each checker: Run() → []Finding
 3. Aggregate into ScanResult (score, pass/fail counts)
 4. Print terminal report (internal/report/printer.go)
-5. Auto-save to .complykit-evidence/scan-<timestamp>.json
+5. Auto-save to ~/.complykit/evidence/scan-<timestamp>.json
 6. Optionally: write JSON (--output), write PDF (--pdf)
 ```
 
@@ -436,10 +436,10 @@ if err != nil {
 
 ## 8. Evidence Vault
 
-Evidence records are stored as JSON in `.complykit-evidence/`:
+Evidence records are stored as JSON in `~/.complykit/evidence/`:
 
 ```
-.complykit-evidence/
+~/.complykit/evidence/
 ├── scan-20260418-091532-4821.json
 ├── scan-20260417-154201-2034.json
 └── .share-secret          ← HMAC key (never commit)
@@ -463,7 +463,7 @@ Evidence records are stored as JSON in `.complykit-evidence/`:
 **API:**
 
 ```go
-store := evidence.NewStore("")         // defaults to .complykit-evidence/
+store := evidence.NewStore("")         // defaults to ~/.complykit/evidence/
 store.Save(result, "soc2")             // auto-called by comply scan
 store.List()                           // []Record, newest first
 store.Latest()                         // *Record or nil
@@ -473,7 +473,7 @@ store.Latest()                         // *Record or nil
 
 ## 9. Share Links
 
-Share links are JWT tokens signed with a per-install HMAC secret stored in `.complykit-evidence/.share-secret`.
+Share links are JWT tokens signed with a per-install HMAC secret stored in `~/.complykit/evidence/.share-secret`.
 
 **Token payload:**
 
