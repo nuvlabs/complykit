@@ -272,7 +272,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 			Failed      int    `json:"failed"`
 			Skipped     int    `json:"skipped"`
 		}
-		var out []summary
+		out := make([]summary, 0, len(records))
 		for _, rec := range records {
 			out = append(out, summary{
 				ID:          rec.ID,
