@@ -19,7 +19,7 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w -X main.version={{.Version}}
+      - -s -w
 
 archives:
   - formats: [tar.gz]
@@ -31,7 +31,7 @@ archives:
 checksum:
   name_template: "checksums.txt"
 
-brews:
+homebrew:
   - name: complykit
     repository:
       owner: nuvlabs
