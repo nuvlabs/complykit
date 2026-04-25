@@ -9,7 +9,10 @@ import (
 )
 
 //go:embed migrate/001_init.sql
-var initSQL string
+var migration001 string
+
+//go:embed migrate/002_auth.sql
+var migration002 string
 
 type DB struct {
 	Pool *pgxpool.Pool
@@ -31,8 +34,12 @@ func Connect(ctx context.Context, dsn string) (*DB, error) {
 }
 
 func (d *DB) migrate(ctx context.Context) error {
-	_, err := d.Pool.Exec(ctx, initSQL)
-	return err
+	for _, sql := range []string{migration001, migration002} {
+		if _, err := d.Pool.Exec(ctx, sql); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (d *DB) Close() {

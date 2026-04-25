@@ -14,6 +14,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
+	"github.com/complykit/complykit/internal/auth"
 	appdb "github.com/complykit/complykit/internal/db"
 	"github.com/complykit/complykit/internal/engine"
 	"github.com/complykit/complykit/internal/evidence"
@@ -49,12 +50,8 @@ type recordStore interface {
 // fileStoreAdapter wraps evidence.Store to satisfy recordStore.
 type fileStoreAdapter struct{ s *evidence.Store }
 
-func (a *fileStoreAdapter) Latest(_ context.Context) (*evidence.Record, error) {
-	return a.s.Latest()
-}
-func (a *fileStoreAdapter) List(_ context.Context) ([]evidence.Record, error) {
-	return a.s.List()
-}
+func (a *fileStoreAdapter) Latest(_ context.Context) (*evidence.Record, error) { return a.s.Latest() }
+func (a *fileStoreAdapter) List(_ context.Context) ([]evidence.Record, error)  { return a.s.List() }
 func (a *fileStoreAdapter) GetByID(_ context.Context, id string) (*evidence.Record, error) {
 	records, err := a.s.List()
 	if err != nil {
@@ -73,37 +70,37 @@ func runServe(cmd *cobra.Command, args []string) error {
 	cyan := color.New(color.FgCyan)
 	ctx := context.Background()
 
-	var store recordStore
-	storageDesc := "file store"
+	var (
+		store       recordStore
+		database    *appdb.DB
+		storageDesc string
+	)
 
 	if dsn := os.Getenv("DATABASE_URL"); dsn != "" {
-		database, err := appdb.Connect(ctx, dsn)
+		var err error
+		database, err = appdb.Connect(ctx, dsn)
 		if err != nil {
 			return fmt.Errorf("connect to database: %w", err)
 		}
 		defer database.Close()
-
-		slug := os.Getenv("ORG_SLUG")
-		if slug == "" {
-			slug = "default"
-		}
-		name := os.Getenv("ORG_NAME")
-		if name == "" {
-			name = slug
-		}
-		org, err := database.GetOrCreateOrg(ctx, slug, name)
-		if err != nil {
-			return fmt.Errorf("get or create org: %w", err)
-		}
-		store = appdb.NewOrgStore(database, org.ID)
-		storageDesc = fmt.Sprintf("postgres (org: %s)", org.Slug)
+		storageDesc = "postgres"
 	} else {
 		fileStore := evidence.NewStore("")
 		store = &fileStoreAdapter{s: fileStore}
 		storageDesc = fmt.Sprintf("file store (%s)", fileStore.Dir())
 	}
 
+	// storeForOrg returns a recordStore scoped to the given orgID (Postgres only).
+	storeForOrg := func(orgID string) recordStore {
+		if database != nil {
+			return appdb.NewOrgStore(database, orgID)
+		}
+		return store
+	}
+
 	mux := http.NewServeMux()
+
+	// ── Public routes ──────────────────────────────────────────────────────────
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		data, err := dashboardHTML.ReadFile("dashboard.html")
@@ -115,61 +112,100 @@ func runServe(cmd *cobra.Command, args []string) error {
 		w.Write(data)
 	})
 
-	mux.HandleFunc("/api/latest", func(w http.ResponseWriter, r *http.Request) {
+	// POST /api/auth/login  {"email":"...", "password":"..."}
+	mux.HandleFunc("/api/auth/login", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		rec, err := store.Latest(r.Context())
-		if err != nil || rec == nil {
-			w.Write([]byte("null"))
+		if r.Method == http.MethodOptions {
+			w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+			w.Header().Set("Access-Control-Allow-Methods", "POST")
 			return
 		}
-		json.NewEncoder(w).Encode(rec)
-	})
-
-	mux.HandleFunc("/api/history", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
-		records, err := store.List(r.Context())
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		if database == nil {
+			http.Error(w, `{"error":"auth requires DATABASE_URL"}`, http.StatusServiceUnavailable)
+			return
+		}
+		var body struct {
+			Email    string `json:"email"`
+			Password string `json:"password"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
+			return
+		}
+		user, err := database.AuthenticateUser(r.Context(), body.Email, body.Password)
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			http.Error(w, `{"error":"invalid credentials"}`, http.StatusUnauthorized)
 			return
 		}
-		type summary struct {
-			ID          string `json:"id"`
-			CollectedAt string `json:"collected_at"`
-			Framework   string `json:"framework"`
-			Score       int    `json:"score"`
-			Passed      int    `json:"passed"`
-			Failed      int    `json:"failed"`
-			Skipped     int    `json:"skipped"`
+		token, err := auth.IssueToken(user.ID, user.OrgID, user.Email, user.Role)
+		if err != nil {
+			http.Error(w, `{"error":"could not issue token"}`, http.StatusInternalServerError)
+			return
 		}
-		var summaries []summary
-		for _, rec := range records {
-			summaries = append(summaries, summary{
-				ID:          rec.ID,
-				CollectedAt: rec.CollectedAt.Format("2006-01-02T15:04:05Z"),
-				Framework:   rec.Framework,
-				Score:       rec.Score,
-				Passed:      rec.Passed,
-				Failed:      rec.Failed,
-				Skipped:     rec.Skipped,
-			})
-		}
-		json.NewEncoder(w).Encode(summaries)
+		json.NewEncoder(w).Encode(map[string]string{
+			"token":  token,
+			"org_id": user.OrgID,
+			"email":  user.Email,
+			"role":   user.Role,
+		})
 	})
 
-	mux.HandleFunc("/api/record/", func(w http.ResponseWriter, r *http.Request) {
+	// POST /api/push  — CLI pushes scan results using an API key
+	mux.HandleFunc("/api/push", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		id := strings.TrimPrefix(r.URL.Path, "/api/record/")
-		rec, err := store.GetByID(r.Context(), id)
-		if err != nil {
-			http.NotFound(w, r)
+		if r.Method != http.MethodPost {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
-		json.NewEncoder(w).Encode(rec)
+		if database == nil {
+			http.Error(w, `{"error":"push requires DATABASE_URL"}`, http.StatusServiceUnavailable)
+			return
+		}
+		rawKey := r.Header.Get("X-API-Key")
+		if rawKey == "" {
+			http.Error(w, `{"error":"missing X-API-Key header"}`, http.StatusUnauthorized)
+			return
+		}
+		org, err := database.ResolveAPIKey(r.Context(), rawKey)
+		if err != nil {
+			http.Error(w, `{"error":"invalid api key"}`, http.StatusUnauthorized)
+			return
+		}
+		var body struct {
+			Framework string          `json:"framework"`
+			Score     int             `json:"score"`
+			Passed    int             `json:"passed"`
+			Failed    int             `json:"failed"`
+			Skipped   int             `json:"skipped"`
+			Findings  []engine.Finding `json:"findings"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, `{"error":"invalid body"}`, http.StatusBadRequest)
+			return
+		}
+		result := &engine.ScanResult{
+			Findings: body.Findings,
+			Passed:   body.Passed,
+			Failed:   body.Failed,
+			Skipped:  body.Skipped,
+			Score:    body.Score,
+		}
+		orgStore := appdb.NewOrgStore(database, org.ID)
+		id, err := orgStore.Save(r.Context(), result, body.Framework)
+		if err != nil {
+			http.Error(w, `{"error":"failed to save scan"}`, http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"id": id, "org": org.Slug})
 	})
 
+	// Share view — public but token-gated
 	mux.HandleFunc("/share/", func(w http.ResponseWriter, r *http.Request) {
 		token := strings.TrimPrefix(r.URL.Path, "/share/")
 		recordID, err := share.Verify(token)
@@ -184,19 +220,76 @@ func runServe(cmd *cobra.Command, args []string) error {
 		w.Write([]byte(html))
 	})
 
-	mux.HandleFunc("/api/share/", func(w http.ResponseWriter, r *http.Request) {
+	// ── Protected routes (JWT required) ────────────────────────────────────────
+
+	protected := http.NewServeMux()
+
+	protected.HandleFunc("/api/latest", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		claims := auth.ClaimsFrom(r)
+		s := storeForOrg(claims.OrgID)
+		rec, err := s.Latest(r.Context())
+		if err != nil || rec == nil {
+			w.Write([]byte("null"))
+			return
+		}
+		json.NewEncoder(w).Encode(rec)
+	})
+
+	protected.HandleFunc("/api/history", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		claims := auth.ClaimsFrom(r)
+		s := storeForOrg(claims.OrgID)
+		records, err := s.List(r.Context())
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+			return
+		}
+		type summary struct {
+			ID          string `json:"id"`
+			CollectedAt string `json:"collected_at"`
+			Framework   string `json:"framework"`
+			Score       int    `json:"score"`
+			Passed      int    `json:"passed"`
+			Failed      int    `json:"failed"`
+			Skipped     int    `json:"skipped"`
+		}
+		var out []summary
+		for _, rec := range records {
+			out = append(out, summary{
+				ID:          rec.ID,
+				CollectedAt: rec.CollectedAt.Format("2006-01-02T15:04:05Z"),
+				Framework:   rec.Framework,
+				Score:       rec.Score,
+				Passed:      rec.Passed,
+				Failed:      rec.Failed,
+				Skipped:     rec.Skipped,
+			})
+		}
+		json.NewEncoder(w).Encode(out)
+	})
+
+	protected.HandleFunc("/api/record/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		claims := auth.ClaimsFrom(r)
+		id := strings.TrimPrefix(r.URL.Path, "/api/record/")
+		rec, err := storeForOrg(claims.OrgID).GetByID(r.Context(), id)
+		if err != nil {
+			http.NotFound(w, r)
+			return
+		}
+		json.NewEncoder(w).Encode(rec)
+	})
+
+	protected.HandleFunc("/api/share/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
 		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
+		claims := auth.ClaimsFrom(r)
 		id := strings.TrimPrefix(r.URL.Path, "/api/share/")
-		if id == "" {
-			http.Error(w, "missing record id", http.StatusBadRequest)
-			return
-		}
-		if _, err := store.GetByID(r.Context(), id); err != nil {
+		if _, err := storeForOrg(claims.OrgID).GetByID(r.Context(), id); err != nil {
 			http.NotFound(w, r)
 			return
 		}
@@ -212,51 +305,42 @@ func runServe(cmd *cobra.Command, args []string) error {
 		})
 	})
 
-	mux.HandleFunc("/api/export/", func(w http.ResponseWriter, r *http.Request) {
+	protected.HandleFunc("/api/export/", func(w http.ResponseWriter, r *http.Request) {
+		claims := auth.ClaimsFrom(r)
 		id := strings.TrimPrefix(r.URL.Path, "/api/export/")
 		format := r.URL.Query().Get("format")
 		if format == "" {
 			format = "json"
 		}
-		rec, err := store.GetByID(r.Context(), id)
+		rec, err := storeForOrg(claims.OrgID).GetByID(r.Context(), id)
 		if err != nil {
 			http.NotFound(w, r)
 			return
 		}
-
 		result := &engine.ScanResult{
-			Findings: rec.Findings,
-			Passed:   rec.Passed,
-			Failed:   rec.Failed,
-			Skipped:  rec.Skipped,
-			Score:    rec.Score,
+			Findings: rec.Findings, Passed: rec.Passed,
+			Failed: rec.Failed, Skipped: rec.Skipped, Score: rec.Score,
 		}
 		filenameBase := "complykit-" + rec.Framework + "-" + rec.ID
-
 		switch format {
 		case "json":
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.json"`, filenameBase))
 			json.NewEncoder(w).Encode(rec)
-
 		case "csv":
 			w.Header().Set("Content-Type", "text/csv")
 			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.csv"`, filenameBase))
-			writer := csv.NewWriter(w)
-			writer.Write([]string{"Check ID", "Title", "Status", "Severity", "Integration", "Resource", "Controls", "Remediation", "Detail"})
+			wr := csv.NewWriter(w)
+			wr.Write([]string{"Check ID", "Title", "Status", "Severity", "Integration", "Resource", "Controls", "Remediation", "Detail"})
 			for _, f := range rec.Findings {
 				var controls []string
 				for _, c := range f.Controls {
 					controls = append(controls, fmt.Sprintf("%s/%s", c.Framework, c.ID))
 				}
-				writer.Write([]string{
-					f.CheckID, f.Title, string(f.Status), string(f.Severity),
-					f.Integration, f.Resource, strings.Join(controls, " · "),
-					f.Remediation, f.Detail,
-				})
+				wr.Write([]string{f.CheckID, f.Title, string(f.Status), string(f.Severity),
+					f.Integration, f.Resource, strings.Join(controls, " · "), f.Remediation, f.Detail})
 			}
-			writer.Flush()
-
+			wr.Flush()
 		case "pdf":
 			tmp, err := os.CreateTemp("", filenameBase+"-*.pdf")
 			if err != nil {
@@ -269,19 +353,17 @@ func runServe(cmd *cobra.Command, args []string) error {
 				http.Error(w, err.Error(), 500)
 				return
 			}
-			data, err := os.ReadFile(tmp.Name())
-			if err != nil {
-				http.Error(w, err.Error(), 500)
-				return
-			}
+			data, _ := os.ReadFile(tmp.Name())
 			w.Header().Set("Content-Type", "application/pdf")
 			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.pdf"`, filepath.Base(filenameBase)+".pdf"))
 			w.Write(data)
-
 		default:
-			http.Error(w, "unknown format (use json, csv, or pdf)", http.StatusBadRequest)
+			http.Error(w, "unknown format", http.StatusBadRequest)
 		}
 	})
+
+	// Mount protected routes behind JWT middleware
+	mux.Handle("/api/", corsMiddleware(auth.Require(protected)))
 
 	fmt.Println()
 	bold.Println("  ComplyKit Dashboard")
@@ -291,4 +373,16 @@ func runServe(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	return http.ListenAndServe(":"+flagServePort, mux)
+}
+
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		if r.Method == http.MethodOptions {
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
 }
