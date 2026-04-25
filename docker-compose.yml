@@ -1,32 +1,50 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: complykit
+      POSTGRES_USER: complykit
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-complykit}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U complykit"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - complykit
+
   backend:
     build: .
     ports:
       - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
     volumes:
       - evidence:/app/.complykit-evidence
       - ${HOME}/.aws:/root/.aws:ro
       - ${HOME}/.kube:/root/.kube:ro
     environment:
-      - AWS_PROFILE=${AWS_PROFILE:-default}
+      DATABASE_URL: postgres://complykit:${POSTGRES_PASSWORD:-complykit}@postgres:5432/complykit
+      ORG_SLUG: ${ORG_SLUG:-default}
+      ORG_NAME: ${ORG_NAME:-Default Org}
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_OWNER: ${GITHUB_OWNER:-}
       # AWS explicit keys (optional):
-      # - AWS_ACCESS_KEY_ID
-      # - AWS_SECRET_ACCESS_KEY
-      # - AWS_SESSION_TOKEN
-      # - AWS_REGION
-      # GitHub:
-      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
-      - GITHUB_OWNER=${GITHUB_OWNER:-}
+      # AWS_ACCESS_KEY_ID:
+      # AWS_SECRET_ACCESS_KEY:
+      # AWS_SESSION_TOKEN:
+      # AWS_REGION:
       # GCP (optional):
-      # - GCP_PROJECT_ID
-      # Azure (optional) — AZURE_SUBSCRIPTION_ID enables Azure scanning.
-      # Auth uses DefaultAzureCredential: set service principal vars or mount ~/.azure
-      # - AZURE_SUBSCRIPTION_ID
-      # - AZURE_CLIENT_ID
-      # - AZURE_CLIENT_SECRET
-      # - AZURE_TENANT_ID
-      # Kubernetes — kubeconfig auto-loaded from ~/.kube/config via volume mount above.
-      # Override with: - KUBECONFIG=/root/.kube/other-config
+      # GCP_PROJECT_ID:
+      # Azure (optional):
+      # AZURE_SUBSCRIPTION_ID:
+      # AZURE_CLIENT_ID:
+      # AZURE_CLIENT_SECRET:
+      # AZURE_TENANT_ID:
     networks:
       - complykit
 
@@ -35,7 +53,6 @@ services:
     ports:
       - "3000:3000"
     environment:
-      # Resolved via the shared Docker network — no host.docker.internal needed
       API_URL: http://backend:8080
     depends_on:
       - backend
@@ -48,3 +65,4 @@ networks:
 
 volumes:
   evidence:
+  pgdata:
