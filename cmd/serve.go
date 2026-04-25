@@ -175,10 +175,17 @@ func runServe(cmd *cobra.Command, args []string) error {
 		})
 	})
 
-	// POST /api/push  — CLI pushes scan results using an API key
+	// POST /api/push — CLI pushes scan results.
+	// Accepts either:
+	//   X-API-Key: ck_...          (API key)
+	//   Authorization: Bearer ...  (JWT from comply login)
 	mux.HandleFunc("/api/push", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
+		if r.Method == http.MethodOptions {
+			return
+		}
 		if r.Method != http.MethodPost {
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			return
@@ -187,22 +194,36 @@ func runServe(cmd *cobra.Command, args []string) error {
 			http.Error(w, `{"error":"push requires DATABASE_URL"}`, http.StatusServiceUnavailable)
 			return
 		}
-		rawKey := r.Header.Get("X-API-Key")
-		if rawKey == "" {
-			http.Error(w, `{"error":"missing X-API-Key header"}`, http.StatusUnauthorized)
+
+		var orgID string
+
+		if rawKey := r.Header.Get("X-API-Key"); rawKey != "" {
+			// API key auth
+			org, err := database.ResolveAPIKey(r.Context(), rawKey)
+			if err != nil {
+				http.Error(w, `{"error":"invalid api key"}`, http.StatusUnauthorized)
+				return
+			}
+			orgID = org.ID
+		} else if bearer := r.Header.Get("Authorization"); strings.HasPrefix(bearer, "Bearer ") {
+			// JWT auth (comply login)
+			claims, err := auth.ParseToken(strings.TrimPrefix(bearer, "Bearer "))
+			if err != nil {
+				http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
+				return
+			}
+			orgID = claims.OrgID
+		} else {
+			http.Error(w, `{"error":"provide X-API-Key or Authorization: Bearer token"}`, http.StatusUnauthorized)
 			return
 		}
-		org, err := database.ResolveAPIKey(r.Context(), rawKey)
-		if err != nil {
-			http.Error(w, `{"error":"invalid api key"}`, http.StatusUnauthorized)
-			return
-		}
+
 		var body struct {
-			Framework string          `json:"framework"`
-			Score     int             `json:"score"`
-			Passed    int             `json:"passed"`
-			Failed    int             `json:"failed"`
-			Skipped   int             `json:"skipped"`
+			Framework string           `json:"framework"`
+			Score     int              `json:"score"`
+			Passed    int              `json:"passed"`
+			Failed    int              `json:"failed"`
+			Skipped   int              `json:"skipped"`
 			Findings  []engine.Finding `json:"findings"`
 		}
 		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
@@ -216,13 +237,13 @@ func runServe(cmd *cobra.Command, args []string) error {
 			Skipped:  body.Skipped,
 			Score:    body.Score,
 		}
-		orgStore := appdb.NewOrgStore(database, org.ID)
+		orgStore := appdb.NewOrgStore(database, orgID)
 		id, err := orgStore.Save(r.Context(), result, body.Framework)
 		if err != nil {
 			http.Error(w, `{"error":"failed to save scan"}`, http.StatusInternalServerError)
 			return
 		}
-		json.NewEncoder(w).Encode(map[string]string{"id": id, "org": org.Slug})
+		json.NewEncoder(w).Encode(map[string]string{"id": id})
 	})
 
 	// Share view — public but token-gated
