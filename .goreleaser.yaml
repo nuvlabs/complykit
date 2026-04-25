@@ -33,6 +33,7 @@ checksum:
 
 brews:
   - name: complykit
+    directory: Formula
     repository:
       owner: nuvlabs
       name: homebrew-tap
