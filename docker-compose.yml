@@ -1,0 +1,50 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "8080:8080"
+    volumes:
+      - evidence:/app/.complykit-evidence
+      - ${HOME}/.aws:/root/.aws:ro
+      - ${HOME}/.kube:/root/.kube:ro
+    environment:
+      - AWS_PROFILE=${AWS_PROFILE:-default}
+      # AWS explicit keys (optional):
+      # - AWS_ACCESS_KEY_ID
+      # - AWS_SECRET_ACCESS_KEY
+      # - AWS_SESSION_TOKEN
+      # - AWS_REGION
+      # GitHub:
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - GITHUB_OWNER=${GITHUB_OWNER:-}
+      # GCP (optional):
+      # - GCP_PROJECT_ID
+      # Azure (optional) — AZURE_SUBSCRIPTION_ID enables Azure scanning.
+      # Auth uses DefaultAzureCredential: set service principal vars or mount ~/.azure
+      # - AZURE_SUBSCRIPTION_ID
+      # - AZURE_CLIENT_ID
+      # - AZURE_CLIENT_SECRET
+      # - AZURE_TENANT_ID
+      # Kubernetes — kubeconfig auto-loaded from ~/.kube/config via volume mount above.
+      # Override with: - KUBECONFIG=/root/.kube/other-config
+    networks:
+      - complykit
+
+  ui:
+    build: ../complykit-ui
+    ports:
+      - "3000:3000"
+    environment:
+      # Resolved via the shared Docker network — no host.docker.internal needed
+      API_URL: http://backend:8080
+    depends_on:
+      - backend
+    networks:
+      - complykit
+
+networks:
+  complykit:
+    driver: bridge
+
+volumes:
+  evidence:
