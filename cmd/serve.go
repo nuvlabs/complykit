@@ -102,12 +102,20 @@ func runServe(cmd *cobra.Command, args []string) error {
 		storageDesc = fmt.Sprintf("file store (%s)", fileStore.Dir())
 	}
 
-	// storeForOrg returns a recordStore scoped to the given orgID (Postgres only).
-	storeForOrg := func(orgID string) recordStore {
-		if database != nil {
-			return appdb.NewOrgStore(database, orgID)
+	// storeForRequest resolves the correct org store for a request.
+	// Super admins may pass X-Org-ID to view any org's data.
+	storeForRequest := func(r *http.Request) recordStore {
+		if database == nil {
+			return store
 		}
-		return store
+		claims := auth.ClaimsFrom(r)
+		orgID := claims.OrgID
+		if claims.Role == "super_admin" {
+			if override := r.Header.Get("X-Org-ID"); override != "" {
+				orgID = override
+			}
+		}
+		return appdb.NewOrgStore(database, orgID)
 	}
 
 	mux := http.NewServeMux()
@@ -238,8 +246,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	protected.HandleFunc("/api/latest", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		claims := auth.ClaimsFrom(r)
-		s := storeForOrg(claims.OrgID)
+		s := storeForRequest(r)
 		rec, err := s.Latest(r.Context())
 		if err != nil || rec == nil {
 			w.Write([]byte("null"))
@@ -250,8 +257,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	protected.HandleFunc("/api/history", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		claims := auth.ClaimsFrom(r)
-		s := storeForOrg(claims.OrgID)
+		s := storeForRequest(r)
 		records, err := s.List(r.Context())
 		if err != nil {
 			http.Error(w, err.Error(), 500)
@@ -283,9 +289,8 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	protected.HandleFunc("/api/record/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		claims := auth.ClaimsFrom(r)
 		id := strings.TrimPrefix(r.URL.Path, "/api/record/")
-		rec, err := storeForOrg(claims.OrgID).GetByID(r.Context(), id)
+		rec, err := storeForRequest(r).GetByID(r.Context(), id)
 		if err != nil {
 			http.NotFound(w, r)
 			return
@@ -299,9 +304,8 @@ func runServe(cmd *cobra.Command, args []string) error {
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
 			return
 		}
-		claims := auth.ClaimsFrom(r)
 		id := strings.TrimPrefix(r.URL.Path, "/api/share/")
-		if _, err := storeForOrg(claims.OrgID).GetByID(r.Context(), id); err != nil {
+		if _, err := storeForRequest(r).GetByID(r.Context(), id); err != nil {
 			http.NotFound(w, r)
 			return
 		}
@@ -318,13 +322,12 @@ func runServe(cmd *cobra.Command, args []string) error {
 	})
 
 	protected.HandleFunc("/api/export/", func(w http.ResponseWriter, r *http.Request) {
-		claims := auth.ClaimsFrom(r)
 		id := strings.TrimPrefix(r.URL.Path, "/api/export/")
 		format := r.URL.Query().Get("format")
 		if format == "" {
 			format = "json"
 		}
-		rec, err := storeForOrg(claims.OrgID).GetByID(r.Context(), id)
+		rec, err := storeForRequest(r).GetByID(r.Context(), id)
 		if err != nil {
 			http.NotFound(w, r)
 			return
@@ -478,27 +481,36 @@ func runServe(cmd *cobra.Command, args []string) error {
 			return
 		}
 
-		// POST — create org (super_admin only)
+		// POST — create org + initial admin user (super_admin only)
 		if r.Method == http.MethodPost {
 			if claims.Role != "super_admin" {
 				http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
 				return
 			}
 			var body struct {
-				Slug string `json:"slug"`
-				Name string `json:"name"`
+				Slug          string `json:"slug"`
+				Name          string `json:"name"`
+				AdminEmail    string `json:"admin_email"`
+				AdminPassword string `json:"admin_password"`
 			}
-			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.Slug == "" || body.Name == "" {
-				http.Error(w, `{"error":"slug and name are required"}`, http.StatusBadRequest)
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+				http.Error(w, `{"error":"invalid request body"}`, http.StatusBadRequest)
 				return
 			}
-			org, err := database.CreateOrg(r.Context(), body.Slug, body.Name)
+			if body.Slug == "" || body.Name == "" || body.AdminEmail == "" || body.AdminPassword == "" {
+				http.Error(w, `{"error":"slug, name, admin_email and admin_password are required"}`, http.StatusBadRequest)
+				return
+			}
+			org, err := database.CreateOrgWithAdmin(r.Context(), body.Slug, body.Name, body.AdminEmail, body.AdminPassword)
 			if err != nil {
 				http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
 				return
 			}
 			w.WriteHeader(http.StatusCreated)
-			json.NewEncoder(w).Encode(org)
+			json.NewEncoder(w).Encode(map[string]string{
+				"id": org.ID, "slug": org.Slug, "name": org.Name,
+				"admin_email": body.AdminEmail,
+			})
 			return
 		}
 
@@ -572,7 +584,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Access-Control-Allow-Origin", "*")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-API-Key, X-Org-ID")
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
 		if r.Method == http.MethodOptions {
 			return
