@@ -21,6 +21,26 @@ func NewOrgStore(db *DB, orgID string) *OrgStore {
 	return &OrgStore{db: db, orgID: orgID}
 }
 
+// SaveRecord imports a full evidence.Record preserving its original collected_at timestamp.
+// Used by the file migration command.
+func (s *OrgStore) SaveRecord(ctx context.Context, rec *evidence.Record) (string, error) {
+	findings, err := json.Marshal(rec.Findings)
+	if err != nil {
+		return "", fmt.Errorf("marshal findings: %w", err)
+	}
+	var id string
+	err = s.db.Pool.QueryRow(ctx, `
+		INSERT INTO scans (org_id, framework, score, passed, failed, skipped, findings, collected_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+		RETURNING id`,
+		s.orgID, rec.Framework, rec.Score, rec.Passed, rec.Failed, rec.Skipped, findings, rec.CollectedAt,
+	).Scan(&id)
+	if err != nil {
+		return "", fmt.Errorf("insert scan: %w", err)
+	}
+	return id, nil
+}
+
 func (s *OrgStore) Save(ctx context.Context, result *engine.ScanResult, framework string) (string, error) {
 	findings, err := json.Marshal(result.Findings)
 	if err != nil {

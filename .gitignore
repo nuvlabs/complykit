@@ -6,3 +6,4 @@ comply-reports/
 policies/
 *.pdf
 *.log
+.env

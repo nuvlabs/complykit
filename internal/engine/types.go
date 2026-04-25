@@ -26,20 +26,20 @@ const (
 )
 
 type ControlRef struct {
-	Framework Framework
-	ID        string
+	Framework Framework `json:"framework"`
+	ID        string    `json:"id"`
 }
 
 type Finding struct {
-	CheckID     string
-	Title       string
-	Status      Status
-	Severity    Severity
-	Integration string
-	Resource    string
-	Detail      string
-	Remediation string
-	Controls    []ControlRef
+	CheckID     string       `json:"id"`
+	Title       string       `json:"title"`
+	Status      Status       `json:"status"`
+	Severity    Severity     `json:"severity"`
+	Integration string       `json:"integration"`
+	Resource    string       `json:"resource"`
+	Detail      string       `json:"detail"`
+	Remediation string       `json:"remediation"`
+	Controls    []ControlRef `json:"controls"`
 }
 
 type ScanResult struct {

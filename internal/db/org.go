@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"time"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 type Org struct {
@@ -34,15 +36,39 @@ func (d *DB) GetOrCreateOrg(ctx context.Context, slug, name string) (*Org, error
 	return d.GetOrgBySlug(ctx, slug)
 }
 
-func (d *DB) CreateOrg(ctx context.Context, slug, name string) (*Org, error) {
+// CreateOrgWithAdmin creates an org and its first admin user in a single transaction.
+func (d *DB) CreateOrgWithAdmin(ctx context.Context, slug, name, adminEmail, adminPassword string) (*Org, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return nil, fmt.Errorf("hash password: %w", err)
+	}
+
+	tx, err := d.Pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
 	var o Org
-	err := d.Pool.QueryRow(ctx,
+	err = tx.QueryRow(ctx,
 		`INSERT INTO orgs (slug, name) VALUES ($1, $2)
 		 RETURNING id, slug, name, plan, created_at`,
 		slug, name,
 	).Scan(&o.ID, &o.Slug, &o.Name, &o.Plan, &o.CreatedAt)
 	if err != nil {
 		return nil, fmt.Errorf("create org: %w", err)
+	}
+
+	_, err = tx.Exec(ctx,
+		`INSERT INTO users (org_id, email, password_hash, role) VALUES ($1, $2, $3, 'admin')`,
+		o.ID, adminEmail, string(hash),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("create admin user: %w", err)
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
 	}
 	return &o, nil
 }

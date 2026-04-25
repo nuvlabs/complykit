@@ -245,7 +245,7 @@ function renderFindings(findings) {
   }
 
   tbody.innerHTML = filtered.map((f, i) => {
-    const controls = (f.controls || []).join('  ·  ');
+    const controls = (f.controls || []).map(c => `${String(c.framework).toUpperCase()} ${c.id}`).join('  ·  ');
     const rem = f.remediation ? f.remediation.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
     return `<tr id="row-${i}">
       <td><span class="badge badge-${f.status}">${f.status}</span></td>
