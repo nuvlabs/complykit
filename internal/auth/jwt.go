@@ -8,7 +8,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-const defaultTTL = 24 * time.Hour
+const defaultTTL = 30 * 24 * time.Hour // 30 days — appropriate for a CLI tool
 
 type Claims struct {
 	UserID string `json:"user_id"`

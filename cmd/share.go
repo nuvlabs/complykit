@@ -48,12 +48,9 @@ func init() {
 	rootCmd.AddCommand(shareCmd)
 }
 
+// requireCreds delegates to the shared auth check in authcheck.go
 func requireCreds() (*credentials.Credentials, error) {
-	creds, err := credentials.Load()
-	if err != nil || creds == nil {
-		return nil, fmt.Errorf("not logged in — run: comply login --uri <server>")
-	}
-	return creds, nil
+	return requireValidCreds()
 }
 
 func apiReq(method, path string, body any, creds *credentials.Credentials) (*http.Response, error) {

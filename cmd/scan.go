@@ -281,11 +281,15 @@ func runScan(cmd *cobra.Command, args []string) error {
 	// push to server if --push or credentials exist
 	creds, _ := credentials.Load()
 	if flagPush || creds != nil {
-		if creds == nil {
-			return fmt.Errorf("--push requires saved credentials — run: comply login --uri <server>")
-		}
-		if err := pushResult(result, flagFramework, creds); err != nil {
-			color.New(color.FgRed).Printf("  Push failed: %v\n", err)
+		validCreds, err := requireValidCreds()
+		if err != nil {
+			if err.Error() != "" {
+				color.New(color.FgRed).Printf("  Push failed: %v\n", err)
+			}
+		} else {
+			if err := pushResult(result, flagFramework, validCreds); err != nil {
+				color.New(color.FgRed).Printf("  Push failed: %v\n", err)
+			}
 		}
 	}
 

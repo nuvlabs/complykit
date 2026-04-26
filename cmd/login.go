@@ -2,10 +2,12 @@ package cmd
 
 import (
 	"bytes"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/manifoldco/promptui"
@@ -109,22 +111,50 @@ func runLogin(cmd *cobra.Command, args []string) error {
 	}
 
 	if err := credentials.Save(&credentials.Credentials{
-		URI:   uri,
-		Token: result.Token,
-		Email: result.Email,
-		OrgID: result.OrgID,
+		URI:       uri,
+		Token:     result.Token,
+		Email:     result.Email,
+		OrgID:     result.OrgID,
+		ExpiresAt: jwtExpiry(result.Token),
 	}); err != nil {
 		return fmt.Errorf("could not save credentials: %w", err)
 	}
 
+	expiry := jwtExpiry(result.Token)
+	expiryDisplay := "unknown"
+	if expiry != "" {
+		if t, err := time.Parse(time.RFC3339, expiry); err == nil {
+			expiryDisplay = fmt.Sprintf("%s (%d days)", t.Format("2006-01-02"), int(time.Until(t).Hours()/24))
+		}
+	}
+
 	fmt.Println()
 	bold.Println("  Login successful!")
-	fmt.Printf("  %-10s %s\n", "Email:", result.Email)
-	fmt.Printf("  %-10s %s\n", "Role:", result.Role)
-	fmt.Printf("  %-10s %s\n", "Server:", uri)
-	fmt.Printf("  %-10s ~/.complykit/credentials.json\n", "Saved:")
+	fmt.Printf("  %-12s %s\n", "Email:",   result.Email)
+	fmt.Printf("  %-12s %s\n", "Role:",    result.Role)
+	fmt.Printf("  %-12s %s\n", "Server:",  uri)
+	fmt.Printf("  %-12s %s\n", "Expires:", expiryDisplay)
 	fmt.Println()
 	green.Println("  Run `comply scan --framework soc2` to push your first scan.")
 	fmt.Println()
 	return nil
+}
+
+// jwtExpiry decodes the exp claim from a JWT without verifying the signature.
+func jwtExpiry(tokenStr string) string {
+	parts := strings.Split(tokenStr, ".")
+	if len(parts) != 3 {
+		return ""
+	}
+	payload, err := base64.RawURLEncoding.DecodeString(parts[1])
+	if err != nil {
+		return ""
+	}
+	var claims struct {
+		Exp int64 `json:"exp"`
+	}
+	if err := json.Unmarshal(payload, &claims); err != nil || claims.Exp == 0 {
+		return ""
+	}
+	return time.Unix(claims.Exp, 0).UTC().Format(time.RFC3339)
 }
