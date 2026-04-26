@@ -287,11 +287,27 @@ func runServe(cmd *cobra.Command, args []string) error {
 			Failed      int             `json:"failed"`
 			Skipped     int             `json:"skipped"`
 			CollectedAt string          `json:"collected_at"`
+			Scope       []string        `json:"scope"`        // providers actually scanned
 			Findings    []publicFinding `json:"findings"`
 		}
 		type publicResponse struct {
 			Org  map[string]string `json:"org"`
 			Scan publicScan        `json:"scan"`
+		}
+
+		// Derive scope: unique top-level providers from findings
+		providerSeen := map[string]bool{}
+		for _, f := range rec.Findings {
+			if f.Integration == "" {
+				continue
+			}
+			// "AWS/IAM" → "AWS", "GitHub/Actions" → "GitHub"
+			parts := strings.SplitN(f.Integration, "/", 2)
+			providerSeen[parts[0]] = true
+		}
+		scope := make([]string, 0, len(providerSeen))
+		for p := range providerSeen {
+			scope = append(scope, p)
 		}
 
 		findings := make([]publicFinding, 0, len(rec.Findings))
@@ -304,7 +320,6 @@ func runServe(cmd *cobra.Command, args []string) error {
 				Integration: f.Integration,
 				Controls:    f.Controls,
 				Remediation: f.Remediation,
-				// resource and detail intentionally omitted
 			})
 		}
 
@@ -317,6 +332,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 				Failed:      rec.Failed,
 				Skipped:     rec.Skipped,
 				CollectedAt: rec.CollectedAt.Format("2006-01-02T15:04:05Z"),
+				Scope:       scope,
 				Findings:    findings,
 			},
 		})
