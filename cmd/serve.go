@@ -267,13 +267,58 @@ func runServe(cmd *cobra.Command, args []string) error {
 			http.Error(w, `{"error":"scan not found"}`, http.StatusNotFound)
 			return
 		}
-		type response struct {
-			Org  map[string]string `json:"org"`
-			Scan interface{}       `json:"scan"`
+
+		// Scrub sensitive infrastructure details before sharing publicly.
+		// Auditors need status/severity/controls — not internal resource names,
+		// counts, ARNs or implementation details.
+		type publicFinding struct {
+			ID          string      `json:"id"`
+			Title       string      `json:"title"`
+			Status      string      `json:"status"`
+			Severity    string      `json:"severity"`
+			Integration string      `json:"integration"`
+			Controls    interface{} `json:"controls"`
+			Remediation string      `json:"remediation"`
 		}
-		json.NewEncoder(w).Encode(response{
-			Org:  map[string]string{"name": org.Name, "slug": org.Slug},
-			Scan: rec,
+		type publicScan struct {
+			Framework   string          `json:"framework"`
+			Score       int             `json:"score"`
+			Passed      int             `json:"passed"`
+			Failed      int             `json:"failed"`
+			Skipped     int             `json:"skipped"`
+			CollectedAt string          `json:"collected_at"`
+			Findings    []publicFinding `json:"findings"`
+		}
+		type publicResponse struct {
+			Org  map[string]string `json:"org"`
+			Scan publicScan        `json:"scan"`
+		}
+
+		findings := make([]publicFinding, 0, len(rec.Findings))
+		for _, f := range rec.Findings {
+			findings = append(findings, publicFinding{
+				ID:          f.CheckID,
+				Title:       f.Title,
+				Status:      string(f.Status),
+				Severity:    string(f.Severity),
+				Integration: f.Integration,
+				Controls:    f.Controls,
+				Remediation: f.Remediation,
+				// resource and detail intentionally omitted
+			})
+		}
+
+		json.NewEncoder(w).Encode(publicResponse{
+			Org: map[string]string{"name": org.Name},
+			Scan: publicScan{
+				Framework:   rec.Framework,
+				Score:       rec.Score,
+				Passed:      rec.Passed,
+				Failed:      rec.Failed,
+				Skipped:     rec.Skipped,
+				CollectedAt: rec.CollectedAt.Format("2006-01-02T15:04:05Z"),
+				Findings:    findings,
+			},
 		})
 	})
 
