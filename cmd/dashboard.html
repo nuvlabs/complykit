@@ -88,6 +88,12 @@
     .controls-list { font-size: 0.7rem; color: var(--muted); }
     .section-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
     .section-header h2 { font-size: 0.95rem; font-weight: 600; }
+    footer { border-top: 1px solid var(--border); padding: 0.75rem 2rem;
+             display: flex; align-items: center; justify-content: space-between;
+             font-size: 0.72rem; color: var(--muted); margin-top: 2rem; }
+    footer a { color: var(--muted); text-decoration: none; }
+    footer a:hover { color: var(--text); }
+    footer .links { display: flex; gap: 1.25rem; }
   </style>
 </head>
 <body>
@@ -152,6 +158,14 @@
   </div>
 
 </div>
+
+<footer>
+  <span>© <script>document.write(new Date().getFullYear())</script> ComplyKit. All rights reserved.</span>
+  <div class="links">
+    <a href="https://github.com/nuvlabs/complykit" target="_blank">GitHub</a>
+    <a href="https://github.com/nuvlabs/complykit/issues" target="_blank">Support</a>
+  </div>
+</footer>
 
 <script>
 let allFindings = [];
