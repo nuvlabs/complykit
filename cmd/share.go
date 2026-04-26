@@ -1,143 +1,207 @@
 package cmd
 
 import (
+	"bytes"
+	"encoding/json"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
 
-	"github.com/complykit/complykit/internal/evidence"
-	"github.com/complykit/complykit/internal/share"
-)
-
-var (
-	flagSharePort  string
-	flagShareDays  int
-	flagShareLabel string
-	flagShareHost  string
+	"github.com/complykit/complykit/internal/credentials"
 )
 
 var shareCmd = &cobra.Command{
-	Use:   "share [record-id]",
-	Short: "Generate a read-only auditor link for a scan report",
-	Example: `  comply share                        # share latest scan
-  comply share 20240115-143022        # share specific record
-  comply share --days 7 --label "Q1 Audit"
-  comply share list                   # show active share links`,
-	RunE: runShare,
+	Use:   "share",
+	Short: "Manage shareable read-only links for scan reports",
+}
+
+var shareCreateCmd = &cobra.Command{
+	Use:   "create <scan-id>",
+	Short: "Create a shareable link for a specific scan",
+	Example: `  comply share create <scan-id> --label "Q1 Audit" --expires 30d
+  comply share create <scan-id> --expires 7d`,
+	Args: cobra.ExactArgs(1),
+	RunE: runShareCreate,
 }
 
 var shareListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "List all active share links",
+	Short: "List your active share links",
 	RunE:  runShareList,
 }
 
+var shareRevokeCmd = &cobra.Command{
+	Use:   "revoke <share-id>",
+	Short: "Revoke a share link",
+	Args:  cobra.ExactArgs(1),
+	RunE:  runShareRevoke,
+}
+
 func init() {
-	shareCmd.Flags().StringVar(&flagShareHost, "host", "http://localhost:8080", "Base URL (set to your public domain when deployed)")
-	shareCmd.Flags().IntVar(&flagShareDays, "days", 30, "Link expiry in days")
-	shareCmd.Flags().StringVar(&flagShareLabel, "label", "", "Label for this link (e.g. 'Q1 Audit')")
-	shareCmd.AddCommand(shareListCmd)
+	shareCreateCmd.Flags().String("label", "", "Label for the link (e.g. 'Q1 Audit')")
+	shareCreateCmd.Flags().String("expires", "30d", "Expiry duration: 1d, 7d, 30d, 90d")
+	shareCmd.AddCommand(shareCreateCmd, shareListCmd, shareRevokeCmd)
 	rootCmd.AddCommand(shareCmd)
 }
 
-func runShare(cmd *cobra.Command, args []string) error {
-	bold := color.New(color.Bold)
-	green := color.New(color.FgGreen, color.Bold)
-	dim := color.New(color.Faint)
-	cyan := color.New(color.FgCyan)
+func requireCreds() (*credentials.Credentials, error) {
+	creds, err := credentials.Load()
+	if err != nil || creds == nil {
+		return nil, fmt.Errorf("not logged in — run: comply login --uri <server>")
+	}
+	return creds, nil
+}
 
-	store := evidence.NewStore("")
-
-	var recordID string
-	if len(args) > 0 {
-		recordID = args[0]
+func apiReq(method, path string, body any, creds *credentials.Credentials) (*http.Response, error) {
+	var reqBody *bytes.Reader
+	if body != nil {
+		b, _ := json.Marshal(body)
+		reqBody = bytes.NewReader(b)
 	} else {
-		rec, err := store.Latest()
-		if err != nil || rec == nil {
-			return fmt.Errorf("no scans found — run `comply scan` first")
-		}
-		recordID = rec.ID
+		reqBody = bytes.NewReader(nil)
 	}
-
-	// verify record exists
-	records, _ := store.List()
-	found := false
-	for _, r := range records {
-		if r.ID == recordID {
-			found = true
-			break
-		}
-	}
-	if !found {
-		return fmt.Errorf("record not found: %s", recordID)
-	}
-
-	ttl := time.Duration(flagShareDays) * 24 * time.Hour
-	link, err := share.Create(recordID, flagShareLabel, ttl)
+	req, err := http.NewRequest(method, creds.URI+path, reqBody)
 	if err != nil {
-		return fmt.Errorf("failed to create share link: %w", err)
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Authorization", "Bearer "+creds.Token)
+	return http.DefaultClient.Do(req)
+}
+
+func runShareCreate(cmd *cobra.Command, args []string) error {
+	scanID := args[0]
+	label, _ := cmd.Flags().GetString("label")
+	expires, _ := cmd.Flags().GetString("expires")
+
+	creds, err := requireCreds()
+	if err != nil {
+		return err
 	}
 
-	shareURL := fmt.Sprintf("%s/share/%s", strings.TrimRight(flagShareHost, "/"), link.Token)
+	bold  := color.New(color.Bold)
+	green := color.New(color.FgGreen)
+	cyan  := color.New(color.FgCyan)
+	dim   := color.New(color.Faint)
+
+	resp, err := apiReq("POST", "/api/shares", map[string]string{
+		"scan_id":    scanID,
+		"label":      label,
+		"expires_in": expires,
+	}, creds)
+	if err != nil {
+		return fmt.Errorf("could not reach server: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode == http.StatusUnauthorized {
+		return fmt.Errorf("token expired — run: comply login --uri %s", creds.URI)
+	}
+	if resp.StatusCode != http.StatusCreated {
+		var e map[string]string
+		json.NewDecoder(resp.Body).Decode(&e)
+		return fmt.Errorf("server error: %s", e["error"])
+	}
+
+	var result struct {
+		Token     string `json:"token"`
+		URL       string `json:"url"`
+		ExpiresAt string `json:"expires_at"`
+		Label     string `json:"label"`
+	}
+	json.NewDecoder(resp.Body).Decode(&result)
+
+	fullURL := strings.TrimRight(creds.URI, "/") + result.URL
 
 	fmt.Println()
 	bold.Println("  Share link created")
 	fmt.Println()
-	cyan.Printf("  %s\n", shareURL)
+	cyan.Printf("  %s\n", fullURL)
 	fmt.Println()
-	dim.Printf("  Record:  %s\n", recordID)
-	dim.Printf("  Expires: %s (%d days)\n", link.ExpiresAt.Format("2006-01-02"), flagShareDays)
-	if flagShareLabel != "" {
-		dim.Printf("  Label:   %s\n", flagShareLabel)
+	dim.Printf("  Scan:    %s\n", scanID)
+	dim.Printf("  Expires: %s\n", result.ExpiresAt)
+	if result.Label != "" && result.Label != "Shared link" {
+		dim.Printf("  Label:   %s\n", result.Label)
 	}
 	fmt.Println()
 	green.Println("  Send this link to your auditor. It's read-only and expires automatically.")
 	fmt.Println()
-	fmt.Println("  To serve the dashboard publicly:")
-	fmt.Println("    comply serve --port 8080")
-	fmt.Println("    # then deploy behind nginx/caddy with TLS")
-	fmt.Println()
-
 	return nil
 }
 
 func runShareList(cmd *cobra.Command, args []string) error {
-	bold := color.New(color.Bold)
-	dim := color.New(color.Faint)
-	green := color.New(color.FgGreen)
-	red := color.New(color.FgRed)
+	creds, err := requireCreds()
+	if err != nil {
+		return err
+	}
 
-	links, err := share.ListLinks()
-	if err != nil || len(links) == 0 {
-		fmt.Println("\n  No share links created yet. Run `comply share` to create one.")
+	resp, err := apiReq("GET", "/api/shares", nil, creds)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	var links []struct {
+		ID             string `json:"id"`
+		Label          string `json:"label"`
+		URL            string `json:"url"`
+		ExpiresAt      string `json:"expires_at"`
+		CreatedByEmail string `json:"created_by_email"`
+		Expired        bool   `json:"expired"`
+	}
+	json.NewDecoder(resp.Body).Decode(&links)
+
+	if len(links) == 0 {
+		fmt.Println("\n  No share links yet. Run `comply share create <scan-id>` to create one.")
 		return nil
 	}
 
+	bold := color.New(color.Bold)
+	dim  := color.New(color.Faint)
+	green := color.New(color.FgGreen)
+	red   := color.New(color.FgRed)
+
 	fmt.Println()
 	bold.Printf("  Share Links (%d)\n\n", len(links))
-	dim.Printf("  %-22s  %-18s  %-12s  %s\n", "RECORD ID", "EXPIRES", "STATUS", "LABEL")
-	dim.Println("  " + strings.Repeat("─", 70))
+	dim.Printf("  %-38s  %-12s  %-20s  %s\n", "ID", "EXPIRES", "CREATED BY", "LABEL")
+	dim.Println("  " + strings.Repeat("─", 90))
 
 	for _, l := range links {
-		expired := time.Now().After(l.ExpiresAt)
-		status := green.Sprint("active")
-		if expired {
-			status = red.Sprint("expired")
+		status := green.Sprint("●")
+		if l.Expired {
+			status = red.Sprint("○")
 		}
-		label := l.Label
-		if label == "" {
-			label = "—"
-		}
-		fmt.Printf("  %-22s  %-18s  %-12s  %s\n",
-			l.RecordID,
-			l.ExpiresAt.Format("2006-01-02"),
-			status,
-			label,
-		)
+		exp, _ := time.Parse(time.RFC3339, l.ExpiresAt)
+		fmt.Printf("  %s %-36s  %-12s  %-20s  %s\n",
+			status, l.ID, exp.Format("2006-01-02"), l.CreatedByEmail, l.Label)
+		dim.Printf("    %s%s\n\n", strings.TrimRight(creds.URI, "/"), l.URL)
 	}
-	fmt.Println()
+	return nil
+}
+
+func runShareRevoke(cmd *cobra.Command, args []string) error {
+	shareID := args[0]
+	creds, err := requireCreds()
+	if err != nil {
+		return err
+	}
+
+	resp, err := apiReq("DELETE", "/api/shares/"+shareID, nil, creds)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		var e map[string]string
+		json.NewDecoder(resp.Body).Decode(&e)
+		return fmt.Errorf("%s", e["error"])
+	}
+
+	color.New(color.FgYellow).Printf("  Share link %s revoked.\n", shareID)
 	return nil
 }

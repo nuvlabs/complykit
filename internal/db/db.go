@@ -17,6 +17,9 @@ var migration002 string
 //go:embed migrate/003_superadmin.sql
 var migration003 string
 
+//go:embed migrate/004_shares.sql
+var migration004 string
+
 type DB struct {
 	Pool *pgxpool.Pool
 }
@@ -37,7 +40,7 @@ func Connect(ctx context.Context, dsn string) (*DB, error) {
 }
 
 func (d *DB) migrate(ctx context.Context) error {
-	for _, sql := range []string{migration001, migration002, migration003} {
+	for _, sql := range []string{migration001, migration002, migration003, migration004} {
 		if _, err := d.Pool.Exec(ctx, sql); err != nil {
 			return err
 		}

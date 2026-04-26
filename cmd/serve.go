@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 	"github.com/spf13/cobra"
@@ -246,19 +247,34 @@ func runServe(cmd *cobra.Command, args []string) error {
 		json.NewEncoder(w).Encode(map[string]string{"id": id})
 	})
 
-	// Share view — public but token-gated
-	mux.HandleFunc("/share/", func(w http.ResponseWriter, r *http.Request) {
-		token := strings.TrimPrefix(r.URL.Path, "/share/")
-		recordID, err := share.Verify(token)
-		if err != nil {
-			http.Error(w, "Link expired or invalid.", http.StatusForbidden)
+	// GET /api/shared/:token — public, returns org's latest scan for a valid share token
+	mux.HandleFunc("/api/shared/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		if database == nil {
+			http.Error(w, `{"error":"not available"}`, http.StatusServiceUnavailable)
 			return
 		}
-		data, _ := dashboardHTML.ReadFile("dashboard.html")
-		script := fmt.Sprintf(`<script>window.__SHARE_RECORD_ID = %q;</script>`, recordID)
-		html := strings.Replace(string(data), "</head>", script+"</head>", 1)
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write([]byte(html))
+		token := strings.TrimPrefix(r.URL.Path, "/api/shared/")
+		scanID, org, err := database.ResolveShareToken(r.Context(), token)
+		if err != nil {
+			http.Error(w, `{"error":"invalid or expired link"}`, http.StatusForbidden)
+			return
+		}
+		orgStore := appdb.NewOrgStore(database, org.ID)
+		rec, err := orgStore.GetByID(r.Context(), scanID)
+		if err != nil {
+			http.Error(w, `{"error":"scan not found"}`, http.StatusNotFound)
+			return
+		}
+		type response struct {
+			Org  map[string]string `json:"org"`
+			Scan interface{}       `json:"scan"`
+		}
+		json.NewEncoder(w).Encode(response{
+			Org:  map[string]string{"name": org.Name, "slug": org.Slug},
+			Scan: rec,
+		})
 	})
 
 	// ── Protected routes (JWT required) ────────────────────────────────────────
@@ -587,6 +603,111 @@ func runServe(cmd *cobra.Command, args []string) error {
 		json.NewEncoder(w).Encode(map[string]string{
 			"id": user.ID, "email": user.Email, "role": user.Role, "org_id": user.OrgID,
 		})
+	})
+
+	// ── Share link management ──────────────────────────────────────────────────
+
+	// POST /api/shares  {"label":"Q1 Audit","expires_in":"30d"}
+	// GET  /api/shares  — list
+	protected.HandleFunc("/api/shares", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if database == nil {
+			http.Error(w, `{"error":"requires database"}`, http.StatusServiceUnavailable)
+			return
+		}
+		claims := auth.ClaimsFrom(r)
+
+		if r.Method == http.MethodGet {
+			links, err := database.ListShareLinks(r.Context(), claims.OrgID, claims.UserID, claims.Role)
+			if err != nil {
+				http.Error(w, `{"error":"could not list shares"}`, 500)
+				return
+			}
+			type linkResp struct {
+				ID             string `json:"id"`
+				Label          string `json:"label"`
+				Token          string `json:"token"`
+				URL            string `json:"url"`
+				ExpiresAt      string `json:"expires_at"`
+				CreatedAt      string `json:"created_at"`
+				CreatedByEmail string `json:"created_by_email"`
+				Expired        bool   `json:"expired"`
+			}
+			out := make([]linkResp, 0, len(links))
+			for _, l := range links {
+				out = append(out, linkResp{
+					ID:             l.ID,
+					Label:          l.Label,
+					Token:          l.Token,
+					URL:            fmt.Sprintf("/share/%s", l.Token),
+					ExpiresAt:      l.ExpiresAt.Format("2006-01-02T15:04:05Z"),
+					CreatedAt:      l.CreatedAt.Format("2006-01-02T15:04:05Z"),
+					CreatedByEmail: l.CreatedByEmail,
+					Expired:        l.ExpiresAt.Before(time.Now()),
+				})
+			}
+			json.NewEncoder(w).Encode(out)
+			return
+		}
+
+		if r.Method == http.MethodPost {
+			var body struct {
+				ScanID    string `json:"scan_id"`
+				Label     string `json:"label"`
+				ExpiresIn string `json:"expires_in"` // "1d","7d","30d","90d"
+			}
+			if err := json.NewDecoder(r.Body).Decode(&body); err != nil || body.ScanID == "" {
+				http.Error(w, `{"error":"scan_id is required"}`, http.StatusBadRequest)
+				return
+			}
+			ttlMap := map[string]time.Duration{
+				"1d": 24 * time.Hour, "7d": 7 * 24 * time.Hour,
+				"30d": 30 * 24 * time.Hour, "90d": 90 * 24 * time.Hour,
+			}
+			ttl, ok := ttlMap[body.ExpiresIn]
+			if !ok {
+				ttl = 30 * 24 * time.Hour
+			}
+			if body.Label == "" {
+				body.Label = "Shared link"
+			}
+			link, err := database.CreateShareLink(r.Context(), claims.OrgID, claims.UserID, body.ScanID, body.Label, ttl)
+			if err != nil {
+				http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusCreated)
+			json.NewEncoder(w).Encode(map[string]string{
+				"id":         link.ID,
+				"token":      link.Token,
+				"url":        fmt.Sprintf("/share/%s", link.Token),
+				"expires_at": link.ExpiresAt.Format("2006-01-02T15:04:05Z"),
+				"label":      link.Label,
+			})
+			return
+		}
+
+		http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+	})
+
+	// DELETE /api/shares/:id
+	protected.HandleFunc("/api/shares/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodDelete {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		if database == nil {
+			http.Error(w, `{"error":"requires database"}`, http.StatusServiceUnavailable)
+			return
+		}
+		claims := auth.ClaimsFrom(r)
+		id := strings.TrimPrefix(r.URL.Path, "/api/shares/")
+		if err := database.RevokeShareLink(r.Context(), id, claims.OrgID, claims.UserID, claims.Role); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"status": "revoked"})
 	})
 
 	// Mount protected routes - use JWT middleware only when database is configured
