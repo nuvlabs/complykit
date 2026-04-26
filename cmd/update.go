@@ -114,12 +114,15 @@ func runUpgrade(bin string, args []string, _ string) error {
 		"HOMEBREW_NO_INSTALL_CLEANUP=1",
 	)
 
-	// For brew: refresh only the nuvlabs tap first (avoids full noisy auto-update
-	// but ensures we see the latest formula version before upgrading).
+	// For brew: git pull the tap repo directly so the formula is up to date
+	// before upgrading — avoids the full noisy `brew update`.
 	if bin == "brew" {
-		tap := exec.Command("brew", "tap", "nuvlabs/tap")
-		tap.Env = quietEnv
-		tap.CombinedOutput() // ignore errors — tap refresh is best-effort
+		if repo, err := exec.Command("brew", "--repo", "nuvlabs/tap").Output(); err == nil {
+			tapDir := strings.TrimSpace(string(repo))
+			pull := exec.Command("git", "-C", tapDir, "pull", "--quiet", "--ff-only")
+			pull.Env = quietEnv
+			pull.CombinedOutput() // best-effort
+		}
 	}
 
 	c := exec.Command(bin, args...)
