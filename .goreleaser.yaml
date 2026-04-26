@@ -5,6 +5,8 @@ project_name: comply
 before:
   hooks:
     - go mod tidy
+    # Sync UI package.json version with the release tag
+    - sh -c 'UI=../complykit-ui/package.json; VERSION={{ trimPrefix .Version "v" }}; sed -i.bak "s/\"version\": \"[^\"]*\"/\"version\": \"$VERSION\"/" $UI && rm -f $UI.bak'
 
 builds:
   - main: .
