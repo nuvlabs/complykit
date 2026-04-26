@@ -94,6 +94,11 @@ func runScan(cmd *cobra.Command, args []string) error {
 	bold := color.New(color.Bold)
 	dim := color.New(color.Faint)
 
+	// Apply saved config as env var fallbacks (env vars still take precedence)
+	if cfg, err := credentials.LoadConfig(); err == nil && cfg != nil {
+		cfg.ApplyToEnv()
+	}
+
 	bold.Printf("\n  ComplyKit — %s Scan\n\n", flagFramework)
 
 	result := &engine.ScanResult{}
