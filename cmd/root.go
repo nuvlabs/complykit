@@ -11,11 +11,18 @@ import (
 	"github.com/complykit/complykit/internal/credentials"
 )
 
+var appVersion = "dev"
+
 var rootCmd = &cobra.Command{
 	Use:           "comply",
 	Short:         "ComplyKit — compliance-as-code for small teams",
 	SilenceUsage:  true,
 	SilenceErrors: true,
+}
+
+func SetVersion(v string) {
+	appVersion = v
+	rootCmd.Version = v
 }
 
 func Execute() {
@@ -27,6 +34,7 @@ func Execute() {
 
 func init() {
 	rootCmd.SetHelpFunc(richHelp)
+	rootCmd.SetVersionTemplate("comply {{.Version}}\n")
 }
 
 func richHelp(cmd *cobra.Command, _ []string) {
