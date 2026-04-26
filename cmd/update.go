@@ -104,23 +104,29 @@ func detectInstallMethod() string {
 	return "binary"
 }
 
-func runUpgrade(bin string, args []string, display string) error {
-	cyan := color.New(color.FgCyan)
+func runUpgrade(bin string, args []string, _ string) error {
 	green := color.New(color.FgGreen)
-	dim := color.New(color.Faint)
-
-	dim.Printf("  Running: %s\n\n", display)
+	cyan  := color.New(color.FgCyan)
 
 	c := exec.Command(bin, args...)
-	c.Stdout = os.Stdout
-	c.Stderr = os.Stderr
-	if err := c.Run(); err != nil {
-		return fmt.Errorf("%s failed: %w", bin, err)
+
+	// Suppress Homebrew noise: auto-update, hints, Tier-2 warnings
+	c.Env = append(os.Environ(),
+		"HOMEBREW_NO_AUTO_UPDATE=1",
+		"HOMEBREW_NO_ENV_HINTS=1",
+		"HOMEBREW_NO_INSTALL_CLEANUP=1",
+	)
+
+	// Capture output — only surface it on failure
+	out, err := c.CombinedOutput()
+	if err != nil {
+		// Show raw output only when something actually went wrong
+		fmt.Fprintf(os.Stderr, "\n%s\n", strings.TrimSpace(string(out)))
+		return fmt.Errorf("update failed")
 	}
 
-	fmt.Println()
 	green.Println("  ✓ comply updated successfully!")
-	cyan.Println("  Restart your terminal or run `comply --version` to confirm.")
+	cyan.Println("  Run `comply --version` to confirm.")
 	fmt.Println()
 	return nil
 }
