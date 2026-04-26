@@ -108,21 +108,36 @@ func runUpgrade(bin string, args []string, _ string) error {
 	green := color.New(color.FgGreen)
 	cyan  := color.New(color.FgCyan)
 
-	c := exec.Command(bin, args...)
-
-	// Suppress Homebrew noise: auto-update, hints, Tier-2 warnings
-	c.Env = append(os.Environ(),
+	quietEnv := append(os.Environ(),
 		"HOMEBREW_NO_AUTO_UPDATE=1",
 		"HOMEBREW_NO_ENV_HINTS=1",
 		"HOMEBREW_NO_INSTALL_CLEANUP=1",
 	)
 
-	// Capture output — only surface it on failure
+	// For brew: refresh only the nuvlabs tap first (avoids full noisy auto-update
+	// but ensures we see the latest formula version before upgrading).
+	if bin == "brew" {
+		tap := exec.Command("brew", "tap", "nuvlabs/tap")
+		tap.Env = quietEnv
+		tap.CombinedOutput() // ignore errors — tap refresh is best-effort
+	}
+
+	c := exec.Command(bin, args...)
+	c.Env = quietEnv
+
 	out, err := c.CombinedOutput()
+	output := strings.TrimSpace(string(out))
+
 	if err != nil {
-		// Show raw output only when something actually went wrong
-		fmt.Fprintf(os.Stderr, "\n%s\n", strings.TrimSpace(string(out)))
+		fmt.Fprintf(os.Stderr, "\n%s\n", output)
 		return fmt.Errorf("update failed")
+	}
+
+	// Brew exits 0 even when nothing changed — detect and report honestly
+	if strings.Contains(output, "already installed") || strings.Contains(output, "already up-to-date") {
+		green.Println("  comply is already up to date.")
+		fmt.Println()
+		return nil
 	}
 
 	green.Println("  ✓ comply updated successfully!")
