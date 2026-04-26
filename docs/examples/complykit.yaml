@@ -1,0 +1,60 @@
+version: 1
+
+# Custom compliance controls for ComplyKit
+# Run with: comply scan --controls complykit.yaml
+# Docs: https://github.com/nuvlabs/complykit
+
+controls:
+  - id: custom_rds_backups
+    title: "RDS automated backups enabled (retention ≥ 7 days)"
+    severity: high
+    frameworks:
+      soc2: CC7.2
+      hipaa: "164.312(a)(2)(iv)"
+    check:
+      type: shell
+      command: >
+        aws rds describe-db-instances
+        --query 'DBInstances[?BackupRetentionPeriod<`7`].DBInstanceIdentifier'
+        --output text
+      expect: ""   # empty output = all instances have ≥7 day retention
+    remediation: >
+      Set BackupRetentionPeriod ≥ 7 on all RDS instances:
+      aws rds modify-db-instance --db-instance-identifier <id> --backup-retention-period 7
+
+  - id: custom_mfa_enforced
+    title: "MFA enforcement policy attached to all IAM users"
+    severity: critical
+    frameworks:
+      soc2: CC6.1
+    check:
+      type: shell
+      command: >
+        aws iam list-users --query 'Users[].UserName' --output text
+        | tr '\t' '\n'
+        | xargs -I{} aws iam list-mfa-devices --user-name {}
+        | grep -c SerialNumber || echo "0"
+      expect: ""
+    remediation: "Attach a DenyWithoutMFA IAM policy to enforce MFA for all console users."
+
+  - id: custom_docker_no_root
+    title: "Dockerfile does not run as root"
+    severity: high
+    frameworks:
+      soc2: CC6.1
+    check:
+      type: file
+      path: Dockerfile
+      expect: "USER"
+    remediation: "Add a non-root USER instruction to your Dockerfile before the CMD/ENTRYPOINT."
+
+  - id: custom_gitignore_secrets
+    title: ".gitignore includes common secret file patterns"
+    severity: medium
+    frameworks:
+      soc2: CC6.1
+    check:
+      type: file
+      path: .gitignore
+      expect: ".env"
+    remediation: "Add .env, *.pem, *.key, credentials.json to your .gitignore."

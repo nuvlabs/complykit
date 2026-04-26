@@ -16,10 +16,12 @@ import (
 
 	awschecks "github.com/complykit/complykit/internal/checks/aws"
 	azchecks "github.com/complykit/complykit/internal/checks/azure"
+	customchecks "github.com/complykit/complykit/internal/checks/custom"
 	gcpchecks "github.com/complykit/complykit/internal/checks/gcp"
 	ghchecks "github.com/complykit/complykit/internal/checks/github"
 	k8schecks "github.com/complykit/complykit/internal/checks/kubernetes"
 	policychecks "github.com/complykit/complykit/internal/checks/policy"
+	tfchecks "github.com/complykit/complykit/internal/checks/terraform"
 	"github.com/complykit/complykit/internal/credentials"
 	"github.com/complykit/complykit/internal/engine"
 	"github.com/complykit/complykit/internal/evidence"
@@ -27,15 +29,17 @@ import (
 )
 
 var (
-	flagFramework string
-	flagProfile   string
-	flagRegion    string
-	flagOutput    string
-	flagPDF       string
-	flagPush      bool
-	flagGHToken   string
-	flagGHOwner   string
-	flagOnly      string
+	flagFramework    string
+	flagProfile      string
+	flagRegion       string
+	flagOutput       string
+	flagPDF          string
+	flagPush         bool
+	flagGHToken      string
+	flagGHOwner      string
+	flagOnly         string
+	flagTerraformDir string
+	flagControls     string
 )
 
 var scanCmd = &cobra.Command{
@@ -55,8 +59,10 @@ func init() {
 	scanCmd.Flags().StringVar(&flagPDF, "pdf", "", "Write PDF report to file path (e.g. report.pdf)")
 	scanCmd.Flags().StringVar(&flagGHToken, "github-token", "", "GitHub token (default: GITHUB_TOKEN env)")
 	scanCmd.Flags().StringVar(&flagGHOwner, "github-owner", "", "GitHub org or user to scan (default: GITHUB_OWNER env)")
-	scanCmd.Flags().StringVar(&flagOnly, "only", "", "Comma-separated sources to scan: aws,gcp,azure,kubernetes,github (default: all)")
+	scanCmd.Flags().StringVar(&flagOnly, "only", "", "Sources to scan: aws,gcp,azure,kubernetes,github,terraform,custom,policy (default: all)")
 	scanCmd.Flags().BoolVar(&flagPush, "push", false, "Push results to ComplyKit server (uses credentials from `comply login`)")
+	scanCmd.Flags().StringVar(&flagTerraformDir, "terraform-dir", "", "Scan Terraform (.tf) files in this directory")
+	scanCmd.Flags().StringVar(&flagControls, "controls", "complykit.yaml", "Path to custom controls file")
 	rootCmd.AddCommand(scanCmd)
 }
 
@@ -247,6 +253,36 @@ func runScan(cmd *cobra.Command, args []string) error {
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "  warning: Policy: %v\n", err)
 		} else {
+			addFiltered(result, findings, flagFramework)
+		}
+	}
+
+	// Terraform / IaC checks
+	if !want("terraform") {
+		if flagTerraformDir != "" {
+			dim.Println("  Skipping Terraform (not in --only)")
+		}
+	} else if flagTerraformDir != "" || want("terraform") {
+		checker := tfchecks.New(flagTerraformDir)
+		findings, err := checker.Run()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  warning: Terraform: %v\n", err)
+		} else if len(findings) > 0 {
+			dim.Printf("  Scanning %s...\n", checker.Integration())
+			addFiltered(result, findings, flagFramework)
+		}
+	}
+
+	// Custom controls from complykit.yaml
+	if !want("custom") {
+		dim.Println("  Skipping Custom controls (not in --only)")
+	} else {
+		checker := customchecks.New(flagControls)
+		findings, err := checker.Run()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "  warning: Custom controls: %v\n", err)
+		} else if len(findings) > 0 {
+			dim.Printf("  Scanning %s...\n", checker.Integration())
 			addFiltered(result, findings, flagFramework)
 		}
 	}
