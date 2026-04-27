@@ -1,6 +1,6 @@
 # ComplyKit
 
-**Compliance-as-code for startups.** One command to scan your AWS, GCP, and GitHub against SOC2, HIPAA, and CIS benchmarks.
+**Compliance-as-code for startups.** One command to scan your AWS, GCP, Azure, Kubernetes, and Terraform against SOC 2, HIPAA, CIS, ISO 27001, and PCI DSS.
 
 ```
 comply scan --framework soc2
@@ -36,12 +36,13 @@ Existing tools (Vanta, Drata, Secureframe) cost $15–30k/year and require a ded
 | Price | $15–30k/year | Free forever | $299/month |
 | Onboarding | Weeks | 2 minutes | 2 minutes |
 | Scans | Automated | Unlimited | Unlimited |
-| Frameworks | SOC2 / HIPAA | SOC2 · HIPAA · CIS | SOC2 · HIPAA · CIS |
+| Frameworks | SOC2 / HIPAA | SOC2 · HIPAA · CIS · ISO 27001 · PCI DSS | SOC2 · HIPAA · CIS · ISO 27001 · PCI DSS |
 | Terminal + JSON + PDF output | No | ✓ | ✓ |
 | Policy document templates | Add-on | ✓ | ✓ |
 | Remediation steps (`comply fix`) | Limited | ✓ | ✓ |
 | Local evidence vault | No | ✓ (local only) | ✓ (cloud-hosted) |
 | Web dashboard | Hosted | localhost only | Hosted (any browser) |
+| Checks catalog (enable/disable) | No | — | ✓ (super admin) |
 | Auditor share links | No | — | ✓ (JWT-signed, expiring) |
 | Slack / email alerts | Add-on | — | ✓ |
 | Team seats | Unlimited | 1 | 5 |
@@ -100,13 +101,20 @@ comply share --label "Q1 Audit"
 | Command | Description |
 |---------|-------------|
 | `comply init` | Interactive setup — configure integrations and alerts |
-| `comply scan` | Scan AWS / GCP / GitHub for compliance issues |
+| `comply scan` | Scan AWS / GCP / Azure / Kubernetes / Terraform / GitHub |
 | `comply fix [id]` | Show step-by-step remediation for failures |
 | `comply watch` | Continuous scanning with regression alerts |
 | `comply serve` | Web dashboard at localhost:8080 |
 | `comply share` | Generate auditor share link (JWT-signed, expires) |
+| `comply ci github` | Generate GitHub Actions workflow template |
+| `comply ci gitlab` | Generate GitLab CI pipeline template |
 | `comply evidence list` | Browse the local evidence vault |
 | `comply policy generate` | Generate SOC2 policy document templates |
+| `comply login` | Authenticate with ComplyKit cloud |
+| `comply whoami` | Show current authenticated user and token expiry |
+| `comply update` | Auto-update CLI (detects brew / go / binary) |
+| `comply config` | Manage cloud credentials |
+| `comply admin` | Manage orgs, users, and API keys (Pro) |
 
 ---
 
@@ -117,18 +125,31 @@ comply share --label "Q1 Audit"
 | SOC2 Type 1/2 | CC6.1-9, CC7.1-5, CC8.1, CC9.1-2 |
 | HIPAA Security Rule | §164.312(a)-(e) |
 | CIS AWS Foundations v1.4 | CIS 1.x, 2.x, 3.x, 4.x |
+| ISO 27001:2022 | A.5–A.8 control families |
+| PCI DSS v4.0 | Requirements 1–12 |
 
 ## Supported integrations
 
-- **AWS** — IAM, S3, CloudTrail, EC2 Security Groups
+- **AWS** — IAM, S3, CloudTrail, CloudWatch, EC2 Security Groups, RDS, KMS, ECR, EKS, GuardDuty, WAF, Config, Access Analyzer
 - **GCP** — IAM Service Accounts, Cloud Storage, Org Policies
-- **GitHub** — Branch protection, Dependabot, Secret scanning, Public repos
+- **Azure** — IAM, AKS, Key Vault, Active Directory, Security policies
+- **Kubernetes** — Pod security, RBAC, network policies, resource limits
+- **Terraform / IaC** — Static analysis of infrastructure-as-code
+- **GitHub** — Branch protection, Dependabot, Secret scanning, Actions, Public repos
+- **Custom** — Define your own controls in `complykit.yaml`
 
 ---
 
 ## CI/CD
 
-Add compliance scanning to every PR:
+Generate and add compliance scanning to every PR:
+
+```bash
+comply ci github   # generates .github/workflows/compliance.yml
+comply ci gitlab   # generates .gitlab-ci.yml compliance job
+```
+
+Or drop in the action directly:
 
 ```yaml
 # .github/workflows/compliance.yml
@@ -137,8 +158,6 @@ Add compliance scanning to every PR:
     framework: soc2
     aws-role-arn: ${{ secrets.AWS_ROLE_ARN }}
 ```
-
-Or use the [workflow template](.github/workflows/compliance.yml) directly.
 
 ---
 
@@ -182,6 +201,22 @@ comply policy generate --company "Acme Inc" --out ./policies
 ```
 
 Produces: Access Control, Incident Response, Change Management, Data Classification, Vendor Management.
+
+---
+
+## Custom controls
+
+Define your own checks in `complykit.yaml` without writing Go:
+
+```yaml
+custom_controls:
+  - id: CUSTOM-001
+    title: "All production databases must have backups enabled"
+    framework: soc2
+    severity: high
+```
+
+Custom controls appear alongside built-in checks in scan output and the web dashboard.
 
 ---
 
