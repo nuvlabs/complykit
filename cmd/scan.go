@@ -46,13 +46,14 @@ var scanCmd = &cobra.Command{
 	Use:   "scan",
 	Short: "Scan your infrastructure for compliance issues",
 	Example: `  comply scan --framework soc2
-  comply scan --framework hipaa --profile prod
-  comply scan --framework soc2 --github-owner myorg --output report.json`,
+  comply scan --framework iso27001
+  comply scan --framework pcidss --profile prod
+  comply scan --framework hipaa --github-owner myorg --output report.json`,
 	RunE: runScan,
 }
 
 func init() {
-	scanCmd.Flags().StringVarP(&flagFramework, "framework", "f", "soc2", "Compliance framework: soc2, hipaa, cis")
+	scanCmd.Flags().StringVarP(&flagFramework, "framework", "f", "soc2", "Compliance framework: soc2, hipaa, cis, iso27001, pcidss")
 	scanCmd.Flags().StringVar(&flagProfile, "profile", "", "AWS profile (default: AWS_PROFILE or default)")
 	scanCmd.Flags().StringVar(&flagRegion, "region", "", "AWS region (default: AWS_DEFAULT_REGION or us-east-1)")
 	scanCmd.Flags().StringVarP(&flagOutput, "output", "o", "", "Write JSON report to file path (use - for stdout)")
@@ -83,6 +84,9 @@ func want(source string) bool {
 func addFiltered(result *engine.ScanResult, findings []engine.Finding, framework string) {
 	fw := engine.Framework(strings.ToLower(framework))
 	for _, f := range findings {
+		// Enrich with ISO 27001 and PCI DSS mappings from the central control map
+		engine.EnrichWithFrameworks(&f)
+
 		if f.Status == engine.StatusSkip {
 			result.Add(f)
 			continue
@@ -142,6 +146,8 @@ func runScan(cmd *cobra.Command, args []string) error {
 				awschecks.NewWAFChecker(cfg),
 				awschecks.NewP2Checker(cfg),
 				awschecks.NewP3Checker(cfg),
+				awschecks.NewISO27001Checker(cfg),
+				awschecks.NewPCIDSSChecker(cfg),
 			}
 			for _, checker := range awsCheckers {
 				dim.Printf("  Scanning %s...\n", checker.Integration())

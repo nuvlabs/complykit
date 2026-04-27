@@ -97,6 +97,11 @@ func runServe(cmd *cobra.Command, args []string) error {
 			}
 			color.New(color.FgYellow).Printf("  Super admin: %s\n", email)
 		}
+
+		// Sync the in-code checks registry into the DB (idempotent; never overwrites enabled flag)
+		if err := database.UpsertChecks(ctx, engine.Registry); err != nil {
+			return fmt.Errorf("seed checks catalog: %w", err)
+		}
 	} else {
 		fileStore := evidence.NewStore("")
 		store = &fileStoreAdapter{s: fileStore}
@@ -769,6 +774,99 @@ func runServe(cmd *cobra.Command, args []string) error {
 			return
 		}
 		json.NewEncoder(w).Encode(map[string]string{"status": "revoked"})
+	})
+
+	// GET /api/checks — catalog of all checks (frameworks, controls, severity, integration)
+	// Optional query params: ?framework=iso27001  ?integration=AWS/IAM
+	// Super admins also see disabled checks by passing ?include_disabled=true
+	protected.HandleFunc("/api/checks", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodGet {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		fw := strings.ToLower(r.URL.Query().Get("framework"))
+		intg := r.URL.Query().Get("integration")
+		claims := auth.ClaimsFrom(r)
+		includeDisabled := claims.Role == "super_admin" && r.URL.Query().Get("include_disabled") == "true"
+
+		if database != nil {
+			rows, err := database.ListChecks(r.Context(), fw, intg, includeDisabled)
+			if err != nil {
+				http.Error(w, `{"error":"could not query checks"}`, http.StatusInternalServerError)
+				return
+			}
+			if rows == nil {
+				rows = []appdb.CheckRow{}
+			}
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"total":  len(rows),
+				"checks": rows,
+			})
+			return
+		}
+
+		// Fallback: in-memory registry (local mode without DB)
+		out := make([]engine.CheckInfo, 0, len(engine.Registry))
+		for _, c := range engine.Registry {
+			if fw != "" {
+				match := false
+				for _, f := range c.Frameworks {
+					if f == fw {
+						match = true
+						break
+					}
+				}
+				if !match {
+					continue
+				}
+			}
+			if intg != "" && !strings.EqualFold(c.Integration, intg) {
+				continue
+			}
+			out = append(out, c)
+		}
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"total":  len(out),
+			"checks": out,
+		})
+	})
+
+	// PUT /api/admin/checks/:id — super_admin can enable/disable or edit a check
+	protected.HandleFunc("/api/admin/checks/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.Method != http.MethodPut {
+			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
+			return
+		}
+		claims := auth.ClaimsFrom(r)
+		if claims.Role != "super_admin" {
+			http.Error(w, `{"error":"forbidden"}`, http.StatusForbidden)
+			return
+		}
+		if database == nil {
+			http.Error(w, `{"error":"requires database"}`, http.StatusServiceUnavailable)
+			return
+		}
+		id := strings.TrimPrefix(r.URL.Path, "/api/admin/checks/")
+		if id == "" {
+			http.Error(w, `{"error":"check id required"}`, http.StatusBadRequest)
+			return
+		}
+		var body struct {
+			Enabled  *bool  `json:"enabled"`
+			Title    string `json:"title"`
+			Severity string `json:"severity"`
+		}
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			http.Error(w, `{"error":"invalid JSON"}`, http.StatusBadRequest)
+			return
+		}
+		if err := database.UpdateCheck(r.Context(), id, body.Enabled, body.Title, body.Severity); err != nil {
+			http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusInternalServerError)
+			return
+		}
+		json.NewEncoder(w).Encode(map[string]string{"status": "updated"})
 	})
 
 	// Mount protected routes - use JWT middleware only when database is configured

@@ -20,9 +20,11 @@ const (
 type Framework string
 
 const (
-	FrameworkSOC2  Framework = "soc2"
-	FrameworkHIPAA Framework = "hipaa"
-	FrameworkCIS   Framework = "cis"
+	FrameworkSOC2     Framework = "soc2"
+	FrameworkHIPAA    Framework = "hipaa"
+	FrameworkCIS      Framework = "cis"
+	FrameworkISO27001 Framework = "iso27001"
+	FrameworkPCIDSS   Framework = "pcidss"
 )
 
 type ControlRef struct {

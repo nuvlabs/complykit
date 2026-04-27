@@ -15,16 +15,33 @@
     }
     body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
            background: var(--bg); color: var(--text); min-height: 100vh; }
+
+    /* ── Header ──────────────────────────────────────────────────────────── */
     header { background: var(--surface); border-bottom: 1px solid var(--border);
              padding: 0 2rem; display: flex; align-items: center; gap: 1rem; height: 56px; }
     header h1 { font-size: 1.1rem; font-weight: 700; color: var(--brand); letter-spacing: -0.02em; }
-    header span { color: var(--muted); font-size: 0.85rem; }
+    header span.scan-info { color: var(--muted); font-size: 0.85rem; }
     nav { display: flex; gap: 0.25rem; margin-left: auto; }
     nav button { background: none; border: 1px solid var(--border); color: var(--muted);
                  padding: 0.3rem 0.8rem; border-radius: 6px; cursor: pointer; font-size: 0.8rem;
                  transition: all 0.15s; }
     nav button:hover, nav button.active { background: var(--brand); border-color: var(--brand); color: #fff; }
-    .container { max-width: 1100px; margin: 0 auto; padding: 1.5rem 1rem; }
+    .user-pill { display: flex; align-items: center; gap: 0.5rem; font-size: 0.75rem; color: var(--muted);
+                 background: var(--bg); border: 1px solid var(--border); border-radius: 20px; padding: 0.2rem 0.75rem; }
+    .role-badge { background: rgba(99,102,241,0.2); color: var(--brand); border-radius: 10px;
+                  padding: 0.1rem 0.4rem; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; }
+    .role-badge.super { background: rgba(220,38,38,0.2); color: #f87171; }
+    .logout-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.75rem;
+                  padding: 0.2rem; border-radius: 4px; transition: color 0.15s; }
+    .logout-btn:hover { color: var(--fail); }
+    .refresh-btn { background: var(--brand); border: none; color: #fff; padding: 0.4rem 1rem;
+                   border-radius: 6px; cursor: pointer; font-size: 0.8rem; }
+    .refresh-btn:hover { background: var(--brand-dark); }
+
+    /* ── Layout ──────────────────────────────────────────────────────────── */
+    .container { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1rem; }
+
+    /* ── Cards / Score ───────────────────────────────────────────────────── */
     .score-bar { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem; }
     .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
     .card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.4rem; }
@@ -33,11 +50,15 @@
     .v-pass { color: var(--pass); } .v-fail { color: var(--fail); } .v-skip { color: var(--skip); }
     .score-gauge { position: relative; height: 6px; background: var(--border); border-radius: 3px; margin-top: 0.75rem; }
     .score-gauge-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+
+    /* ── Tabs ────────────────────────────────────────────────────────────── */
     .tabs { display: flex; gap: 0.5rem; margin-bottom: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 0.5rem; }
     .tab { background: none; border: none; color: var(--muted); padding: 0.4rem 0.8rem; cursor: pointer;
            font-size: 0.85rem; border-radius: 6px; transition: all 0.15s; }
     .tab:hover { color: var(--text); }
     .tab.active { background: var(--brand); color: #fff; }
+
+    /* ── Findings table ──────────────────────────────────────────────────── */
     .findings-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
     .findings-table th { text-align: left; padding: 0.5rem 0.75rem; color: var(--muted);
                          font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.05em;
@@ -49,6 +70,8 @@
     .findings-table td { padding: 0.6rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
     .findings-table tr:last-child td { border-bottom: none; }
     .findings-table tr:hover td { background: rgba(99,102,241,0.06); }
+
+    /* ── Badges ──────────────────────────────────────────────────────────── */
     .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.7rem;
              font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
     .badge-pass { background: rgba(34,197,94,0.15); color: var(--pass); }
@@ -60,13 +83,19 @@
     .badge-low { background: rgba(148,163,184,0.15); color: var(--muted); }
     .int-tag { background: rgba(99,102,241,0.12); color: var(--brand); border-radius: 4px;
                padding: 0.15rem 0.45rem; font-size: 0.7rem; font-weight: 600; }
+    .fw-tag { background: rgba(34,197,94,0.1); color: var(--pass); border-radius: 4px;
+              padding: 0.1rem 0.35rem; font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
+              display: inline-block; margin: 0.1rem 0.1rem 0 0; }
+
+    /* ── Remediation ─────────────────────────────────────────────────────── */
     .remediation { background: var(--bg); border-left: 3px solid var(--brand);
                    border-radius: 0 6px 6px 0; padding: 0.75rem 1rem; margin-top: 0.5rem;
                    font-size: 0.8rem; color: var(--muted); white-space: pre-wrap; font-family: monospace;
                    display: none; }
-    tr.expanded .remediation { display: block; }
     .expand-btn { background: none; border: none; color: var(--muted); cursor: pointer; font-size: 0.75rem; padding: 0.2rem 0.4rem; border-radius: 4px; }
     .expand-btn:hover { background: var(--border); color: var(--text); }
+
+    /* ── History ─────────────────────────────────────────────────────────── */
     .history-list { display: flex; flex-direction: column; gap: 0.5rem; }
     .history-item { background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
                     padding: 0.75rem 1rem; display: flex; align-items: center; gap: 1rem; cursor: pointer;
@@ -78,15 +107,14 @@
     .history-item .score-num { font-size: 1.1rem; font-weight: 700; margin-left: auto; }
     .mini-bar { height: 4px; width: 80px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .mini-bar-fill { height: 100%; border-radius: 2px; }
+
+    /* ── Common helpers ──────────────────────────────────────────────────── */
     .empty { text-align: center; padding: 3rem; color: var(--muted); }
     .empty code { display: block; background: var(--surface); border: 1px solid var(--border);
                   border-radius: 8px; padding: 0.75rem 1.5rem; margin-top: 1rem; font-size: 0.85rem;
                   color: var(--brand); display: inline-block; }
-    .refresh-btn { background: var(--brand); border: none; color: #fff; padding: 0.4rem 1rem;
-                   border-radius: 6px; cursor: pointer; font-size: 0.8rem; margin-left: auto; }
-    .refresh-btn:hover { background: var(--brand-dark); }
     .controls-list { font-size: 0.7rem; color: var(--muted); }
-    .section-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }
+    .section-header { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; flex-wrap: wrap; }
     .section-header h2 { font-size: 0.95rem; font-weight: 600; }
     footer { border-top: 1px solid var(--border); padding: 0.75rem 2rem;
              display: flex; align-items: center; justify-content: space-between;
@@ -94,17 +122,103 @@
     footer a { color: var(--muted); text-decoration: none; }
     footer a:hover { color: var(--text); }
     footer .links { display: flex; gap: 1.25rem; }
+
+    /* ── Toggle switch ───────────────────────────────────────────────────── */
+    .toggle-wrap { display: flex; align-items: center; gap: 0.5rem; }
+    .toggle { position: relative; display: inline-block; width: 36px; height: 20px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider { position: absolute; cursor: pointer; inset: 0; background: var(--border);
+                     border-radius: 20px; transition: 0.2s; }
+    .toggle-slider::before { content: ''; position: absolute; width: 14px; height: 14px; left: 3px; bottom: 3px;
+                              background: white; border-radius: 50%; transition: 0.2s; }
+    input:checked + .toggle-slider { background: var(--pass); }
+    input:checked + .toggle-slider::before { transform: translateX(16px); }
+    .toggle-label { font-size: 0.75rem; color: var(--muted); min-width: 52px; }
+
+    /* ── Filter bar ──────────────────────────────────────────────────────── */
+    .filter-bar { display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; }
+    .filter-bar select, .filter-bar input {
+      background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      padding: 0.35rem 0.6rem; border-radius: 6px; font-size: 0.8rem; outline: none; }
+    .filter-bar select:focus, .filter-bar input:focus { border-color: var(--brand); }
+    .stat-chip { font-size: 0.72rem; color: var(--muted); padding: 0.2rem 0.5rem;
+                 background: var(--bg); border: 1px solid var(--border); border-radius: 10px; }
+
+    /* ── Admin forms ─────────────────────────────────────────────────────── */
+    .admin-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+    @media (max-width: 800px) { .admin-grid { grid-template-columns: 1fr; } }
+    .form-group { margin-bottom: 0.75rem; }
+    .form-group label { display: block; font-size: 0.75rem; color: var(--muted); margin-bottom: 0.3rem;
+                        text-transform: uppercase; letter-spacing: 0.04em; }
+    .form-group input, .form-group select {
+      width: 100%; background: var(--bg); border: 1px solid var(--border); color: var(--text);
+      padding: 0.5rem 0.75rem; border-radius: 6px; font-size: 0.85rem; outline: none; }
+    .form-group input:focus, .form-group select:focus { border-color: var(--brand); }
+    .btn { border: none; padding: 0.5rem 1.25rem; border-radius: 6px; cursor: pointer;
+           font-size: 0.85rem; font-weight: 600; transition: opacity 0.15s; }
+    .btn:hover { opacity: 0.85; }
+    .btn-primary { background: var(--brand); color: #fff; }
+    .btn-danger { background: var(--fail); color: #fff; }
+    .btn-sm { padding: 0.3rem 0.7rem; font-size: 0.75rem; }
+    .form-error { font-size: 0.75rem; color: var(--fail); margin-top: 0.5rem; }
+    .form-success { font-size: 0.75rem; color: var(--pass); margin-top: 0.5rem; }
+    .card-title { font-size: 0.85rem; font-weight: 600; margin-bottom: 1rem;
+                  padding-bottom: 0.5rem; border-bottom: 1px solid var(--border); }
+
+    /* ── Admin table ─────────────────────────────────────────────────────── */
+    .admin-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+    .admin-table th { text-align: left; padding: 0.5rem 0.75rem; color: var(--muted); font-size: 0.7rem;
+                      text-transform: uppercase; letter-spacing: 0.05em; border-bottom: 1px solid var(--border); }
+    .admin-table td { padding: 0.55rem 0.75rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .admin-table tr:last-child td { border-bottom: none; }
+    .admin-table tr:hover td { background: rgba(99,102,241,0.05); }
+
+    /* ── Login overlay ───────────────────────────────────────────────────── */
+    #login-overlay { position: fixed; inset: 0; background: var(--bg); display: flex;
+                     align-items: center; justify-content: center; z-index: 999; }
+    .login-box { background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+                 padding: 2.5rem; width: 360px; }
+    .login-box h2 { font-size: 1.2rem; font-weight: 700; color: var(--brand); margin-bottom: 0.3rem; }
+    .login-box p { font-size: 0.82rem; color: var(--muted); margin-bottom: 1.5rem; }
+    .login-box .form-group input { font-size: 0.9rem; }
+    .login-btn { width: 100%; padding: 0.65rem; font-size: 0.9rem; }
   </style>
 </head>
 <body>
+
+<!-- Login overlay -->
+<div id="login-overlay" style="display:none">
+  <div class="login-box">
+    <h2>ComplyKit</h2>
+    <p>Sign in to your dashboard</p>
+    <div class="form-group">
+      <label>Email</label>
+      <input type="email" id="login-email" placeholder="you@company.com" autocomplete="email"/>
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input type="password" id="login-password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <div id="login-error" class="form-error" style="display:none"></div>
+    <button class="btn btn-primary login-btn" onclick="doLogin()">Sign in</button>
+  </div>
+</div>
+
 <header>
   <h1>ComplyKit</h1>
-  <span id="last-scan">Loading...</span>
-  <nav>
+  <span class="scan-info" id="last-scan">Loading...</span>
+  <nav id="main-nav">
     <button class="active" onclick="showTab('overview')">Overview</button>
     <button onclick="showTab('findings')">Findings</button>
     <button onclick="showTab('history')">History</button>
+    <button id="nav-checks" style="display:none" onclick="showTab('checks')">Checks</button>
+    <button id="nav-admin" style="display:none" onclick="showTab('admin')">Admin</button>
   </nav>
+  <div id="user-pill" class="user-pill" style="display:none">
+    <span id="user-email">—</span>
+    <span id="user-role-badge" class="role-badge"></span>
+    <button class="logout-btn" title="Sign out" onclick="doLogout()">✕</button>
+  </div>
   <button class="refresh-btn" onclick="load()">↻ Refresh</button>
 </header>
 
@@ -114,9 +228,7 @@
   <div id="tab-overview">
     <div class="score-bar" id="score-cards"></div>
     <div class="card">
-      <div class="section-header">
-        <h2>Findings by Integration</h2>
-      </div>
+      <div class="section-header"><h2>Findings by Integration</h2></div>
       <div id="integration-groups"></div>
     </div>
   </div>
@@ -127,19 +239,19 @@
       <div class="section-header">
         <h2>All Findings</h2>
         <div style="margin-left:auto;display:flex;gap:0.5rem">
-          <button class="tab active" data-filter="all" onclick="filterFindings('all',this)">All</button>
-          <button class="tab" data-filter="fail" onclick="filterFindings('fail',this)">Failures</button>
-          <button class="tab" data-filter="pass" onclick="filterFindings('pass',this)">Passing</button>
-          <button class="tab" data-filter="skip" onclick="filterFindings('skip',this)">Skipped</button>
+          <button class="tab active" onclick="filterFindings('all',this)">All</button>
+          <button class="tab" onclick="filterFindings('fail',this)">Failures</button>
+          <button class="tab" onclick="filterFindings('pass',this)">Passing</button>
+          <button class="tab" onclick="filterFindings('skip',this)">Skipped</button>
         </div>
       </div>
       <table class="findings-table">
         <thead>
           <tr>
-            <th data-sort="status" onclick="sortFindings('status',this)">Status <span class="sort-icon">↕</span></th>
-            <th data-sort="title" onclick="sortFindings('title',this)">Check <span class="sort-icon">↕</span></th>
-            <th data-sort="integration" onclick="sortFindings('integration',this)">Integration <span class="sort-icon">↕</span></th>
-            <th data-sort="severity" onclick="sortFindings('severity',this)">Severity <span class="sort-icon">↕</span></th>
+            <th onclick="sortFindings('status',this)">Status <span class="sort-icon">↕</span></th>
+            <th onclick="sortFindings('title',this)">Check <span class="sort-icon">↕</span></th>
+            <th onclick="sortFindings('integration',this)">Integration <span class="sort-icon">↕</span></th>
+            <th onclick="sortFindings('severity',this)">Severity <span class="sort-icon">↕</span></th>
             <th>Controls</th>
             <th></th>
           </tr>
@@ -157,6 +269,134 @@
     </div>
   </div>
 
+  <!-- Checks catalog tab (super_admin) -->
+  <div id="tab-checks" style="display:none">
+    <div class="card">
+      <div class="section-header">
+        <h2>Compliance Checks Catalog</h2>
+        <span id="checks-stat" class="stat-chip"></span>
+        <div class="filter-bar" style="margin-left:auto">
+          <select id="checks-fw-filter" onchange="renderChecksTable()">
+            <option value="">All Frameworks</option>
+            <option value="soc2">SOC 2</option>
+            <option value="hipaa">HIPAA</option>
+            <option value="cis">CIS</option>
+            <option value="iso27001">ISO 27001</option>
+            <option value="pcidss">PCI DSS</option>
+          </select>
+          <select id="checks-int-filter" onchange="renderChecksTable()">
+            <option value="">All Integrations</option>
+          </select>
+          <select id="checks-status-filter" onchange="renderChecksTable()">
+            <option value="">All</option>
+            <option value="enabled">Enabled</option>
+            <option value="disabled">Disabled</option>
+          </select>
+          <input type="text" id="checks-search" placeholder="Search…" oninput="renderChecksTable()" style="width:160px"/>
+        </div>
+      </div>
+      <table class="findings-table">
+        <thead>
+          <tr>
+            <th style="width:50px">On</th>
+            <th>Check</th>
+            <th>Integration</th>
+            <th>Severity</th>
+            <th>Frameworks</th>
+            <th>Controls</th>
+          </tr>
+        </thead>
+        <tbody id="checks-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Admin tab (super_admin) -->
+  <div id="tab-admin" style="display:none">
+
+    <div style="display:flex;gap:0.5rem;margin-bottom:1rem">
+      <button class="tab active" id="admin-tab-orgs" onclick="showAdminSection('orgs')">Orgs</button>
+      <button class="tab" id="admin-tab-users" onclick="showAdminSection('users')">Users</button>
+    </div>
+
+    <!-- Orgs section -->
+    <div id="admin-section-orgs">
+      <div class="admin-grid">
+        <!-- Create org form -->
+        <div class="card">
+          <div class="card-title">Create Organisation</div>
+          <div class="form-group">
+            <label>Slug</label>
+            <input type="text" id="org-slug" placeholder="acme"/>
+          </div>
+          <div class="form-group">
+            <label>Name</label>
+            <input type="text" id="org-name" placeholder="Acme Corp"/>
+          </div>
+          <div class="form-group">
+            <label>Admin Email</label>
+            <input type="email" id="org-admin-email" placeholder="admin@acme.com"/>
+          </div>
+          <div class="form-group">
+            <label>Admin Password</label>
+            <input type="password" id="org-admin-password" placeholder="••••••••"/>
+          </div>
+          <button class="btn btn-primary" onclick="createOrg()">Create Org</button>
+          <div id="org-msg" style="margin-top:0.5rem"></div>
+        </div>
+
+        <!-- Org list -->
+        <div class="card" style="overflow-x:auto">
+          <div class="card-title">All Organisations <span id="org-count" class="stat-chip" style="font-size:0.7rem;margin-left:0.4rem"></span></div>
+          <table class="admin-table">
+            <thead><tr><th>Slug</th><th>Name</th><th>Plan</th><th>Created</th></tr></thead>
+            <tbody id="orgs-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Users section -->
+    <div id="admin-section-users" style="display:none">
+      <div class="admin-grid">
+        <!-- Create user form -->
+        <div class="card">
+          <div class="card-title">Create User</div>
+          <div class="form-group">
+            <label>Email</label>
+            <input type="email" id="new-user-email" placeholder="user@acme.com"/>
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <input type="password" id="new-user-password" placeholder="••••••••"/>
+          </div>
+          <div class="form-group">
+            <label>Org ID</label>
+            <input type="text" id="new-user-orgid" placeholder="org UUID (leave blank = your org)"/>
+          </div>
+          <div class="form-group">
+            <label>Role</label>
+            <select id="new-user-role">
+              <option value="member">Member</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+          <button class="btn btn-primary" onclick="createUser()">Create User</button>
+          <div id="user-msg" style="margin-top:0.5rem"></div>
+        </div>
+
+        <!-- User list -->
+        <div class="card" style="overflow-x:auto">
+          <div class="card-title">All Users <span id="user-count" class="stat-chip" style="font-size:0.7rem;margin-left:0.4rem"></span></div>
+          <table class="admin-table">
+            <thead><tr><th>Email</th><th>Role</th><th>Org</th><th>Reset Password</th></tr></thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <footer>
@@ -168,19 +408,117 @@
 </footer>
 
 <script>
-let allFindings = [];
-let currentFilter = 'all';
-let currentSort = { field: null, asc: true };
+// ── Auth ──────────────────────────────────────────────────────────────────
+function getToken()       { return localStorage.getItem('ck_token'); }
+function setToken(t)      { localStorage.setItem('ck_token', t); }
+function clearToken()     { localStorage.removeItem('ck_token'); }
 
-// Severity order for sorting
-const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, '': 4 };
-const statusOrder = { fail: 0, pass: 1, skip: 2 };
+function parseJWT(token) {
+  try { return JSON.parse(atob(token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/'))); }
+  catch { return null; }
+}
+
+function currentUser() {
+  const t = getToken();
+  return t ? parseJWT(t) : null;
+}
+
+function authFetch(url, opts = {}) {
+  const token = getToken();
+  if (token) {
+    opts.headers = { ...(opts.headers || {}), 'Authorization': 'Bearer ' + token };
+  }
+  return fetch(url, opts);
+}
+
+async function doLogin() {
+  const email    = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errEl    = document.getElementById('login-error');
+  errEl.style.display = 'none';
+
+  const resp = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) {
+    errEl.textContent = data.error || 'Login failed';
+    errEl.style.display = 'block';
+    return;
+  }
+  setToken(data.token);
+  document.getElementById('login-overlay').style.display = 'none';
+  initDashboard();
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.getElementById('login-overlay').style.display !== 'none') {
+    doLogin();
+  }
+});
+
+function doLogout() {
+  clearToken();
+  location.reload();
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+async function boot() {
+  // Try without auth first (local/no-DB mode)
+  const resp = await fetch('/api/latest').catch(() => null);
+  if (resp && resp.status === 401) {
+    // Auth required — show login or use stored token
+    const token = getToken();
+    if (!token) { showLogin(); return; }
+    // Validate stored token
+    const check = await authFetch('/api/latest');
+    if (check.status === 401) { clearToken(); showLogin(); return; }
+  }
+  initDashboard();
+}
+
+function showLogin() {
+  document.getElementById('login-overlay').style.display = 'flex';
+}
+
+function initDashboard() {
+  const user = currentUser();
+  if (user) {
+    document.getElementById('user-pill').style.display = 'flex';
+    document.getElementById('user-email').textContent = user.email;
+    const rb = document.getElementById('user-role-badge');
+    rb.textContent = user.role.replace('_', ' ');
+    rb.className = 'role-badge' + (user.role === 'super_admin' ? ' super' : '');
+  }
+
+  if (user && user.role === 'super_admin') {
+    document.getElementById('nav-checks').style.display = '';
+    document.getElementById('nav-admin').style.display = '';
+  }
+
+  load();
+  if (!window.__SHARE_RECORD_ID) setInterval(load, 60000);
+}
+
+// ── Data loading ──────────────────────────────────────────────────────────
+let allFindings  = [];
+let currentFilter = 'all';
+let currentSort  = { field: null, asc: true };
+let allChecks    = [];
 
 async function load() {
+  if (window.__SHARE_RECORD_ID) {
+    loadRecord(window.__SHARE_RECORD_ID);
+    document.querySelector('nav').style.display = 'none';
+    document.querySelector('.refresh-btn').style.display = 'none';
+    return;
+  }
   try {
     const [latest, history] = await Promise.all([
-      fetch('/api/latest').then(r => r.json()),
-      fetch('/api/history').then(r => r.json())
+      authFetch('/api/latest').then(r => r.ok ? r.json() : null),
+      authFetch('/api/history').then(r => r.ok ? r.json() : []),
     ]);
     render(latest, history);
   } catch(e) {
@@ -194,10 +532,8 @@ function render(latest, history) {
       '<div class="empty"><p>No scans yet.</p><code>comply scan --framework soc2</code></div>';
     return;
   }
-
   document.getElementById('last-scan').textContent =
     `Last scan: ${new Date(latest.collected_at).toLocaleString()} · ${latest.framework.toUpperCase()}`;
-
   renderScoreCards(latest);
   allFindings = latest.findings || [];
   renderFindings(allFindings);
@@ -205,6 +541,7 @@ function render(latest, history) {
   renderHistory(history || []);
 }
 
+// ── Score cards ───────────────────────────────────────────────────────────
 function scoreColor(s) {
   if (s >= 80) return 'var(--pass)';
   if (s >= 50) return 'var(--skip)';
@@ -218,9 +555,7 @@ function renderScoreCards(r) {
       <div class="label">Compliance Score</div>
       <div class="value" style="color:${scoreColor(r.score)}">${r.score}</div>
       <div class="sub">out of 100</div>
-      <div class="score-gauge">
-        <div class="score-gauge-fill" style="width:${r.score}%;background:${scoreColor(r.score)}"></div>
-      </div>
+      <div class="score-gauge"><div class="score-gauge-fill" style="width:${r.score}%;background:${scoreColor(r.score)}"></div></div>
     </div>
     <div class="card">
       <div class="label">Passed</div>
@@ -239,6 +574,7 @@ function renderScoreCards(r) {
     </div>`;
 }
 
+// ── Integration groups ────────────────────────────────────────────────────
 function renderIntegrationGroups(findings) {
   const groups = {};
   for (const f of findings) {
@@ -247,7 +583,6 @@ function renderIntegrationGroups(findings) {
     if (f.status === 'pass') groups[k].pass++;
     else if (f.status === 'fail') groups[k].fail++;
   }
-
   let html = '';
   for (const [name, counts] of Object.entries(groups)) {
     const total = counts.pass + counts.fail;
@@ -256,71 +591,41 @@ function renderIntegrationGroups(findings) {
       <span class="int-tag" style="min-width:110px">${name}</span>
       <span style="color:var(--pass);font-size:0.8rem">✓ ${counts.pass}</span>
       <span style="color:var(--fail);font-size:0.8rem">✗ ${counts.fail}</span>
-      <div class="mini-bar" style="margin-left:auto">
-        <div class="mini-bar-fill" style="width:${pct}%;background:${scoreColor(pct)}"></div>
-      </div>
+      <div class="mini-bar" style="margin-left:auto"><div class="mini-bar-fill" style="width:${pct}%;background:${scoreColor(pct)}"></div></div>
       <span style="font-size:0.8rem;min-width:40px;text-align:right;color:${scoreColor(pct)}">${pct}%</span>
     </div>`;
   }
   document.getElementById('integration-groups').innerHTML = html || '<div class="empty">No findings</div>';
 }
 
+// ── Findings ──────────────────────────────────────────────────────────────
+const severityOrder = { critical: 0, high: 1, medium: 2, low: 3, '': 4 };
+const statusOrder   = { fail: 0, pass: 1, skip: 2 };
+
 function renderFindings(findings) {
-  let filtered = findings;
-  
-  // Apply filter
-  if (currentFilter !== 'all') {
-    filtered = findings.filter(f => f.status === currentFilter);
-  }
-  
-  // Apply sort
+  let filtered = currentFilter === 'all' ? findings : findings.filter(f => f.status === currentFilter);
   if (currentSort.field) {
     filtered = [...filtered].sort((a, b) => {
-      let valA, valB;
-      
-      switch (currentSort.field) {
-        case 'status':
-          valA = statusOrder[a.status] ?? 99;
-          valB = statusOrder[b.status] ?? 99;
-          break;
-        case 'severity':
-          valA = severityOrder[a.severity?.toLowerCase()] ?? 99;
-          valB = severityOrder[b.severity?.toLowerCase()] ?? 99;
-          break;
-        case 'integration':
-          valA = (a.integration || 'zzz').toLowerCase();
-          valB = (b.integration || 'zzz').toLowerCase();
-          break;
-        case 'title':
-          valA = (a.title || a.id || '').toLowerCase();
-          valB = (b.title || b.id || '').toLowerCase();
-          break;
-        default:
-          valA = a[currentSort.field] || '';
-          valB = b[currentSort.field] || '';
-      }
-      
-      if (valA < valB) return currentSort.asc ? -1 : 1;
-      if (valA > valB) return currentSort.asc ? 1 : -1;
+      let va, vb;
+      if (currentSort.field === 'status') { va = statusOrder[a.status] ?? 99; vb = statusOrder[b.status] ?? 99; }
+      else if (currentSort.field === 'severity') { va = severityOrder[a.severity?.toLowerCase()] ?? 99; vb = severityOrder[b.severity?.toLowerCase()] ?? 99; }
+      else if (currentSort.field === 'integration') { va = (a.integration || 'zzz').toLowerCase(); vb = (b.integration || 'zzz').toLowerCase(); }
+      else { va = (a.title || a.id || '').toLowerCase(); vb = (b.title || b.id || '').toLowerCase(); }
+      if (va < vb) return currentSort.asc ? -1 : 1;
+      if (va > vb) return currentSort.asc ? 1 : -1;
       return 0;
     });
   }
-  
   const tbody = document.getElementById('findings-tbody');
-  if (!filtered.length) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty">No findings</td></tr>';
-    return;
-  }
-
+  if (!filtered.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty">No findings</td></tr>'; return; }
   tbody.innerHTML = filtered.map((f, i) => {
     const controls = (f.controls || []).map(c => `${String(c.framework).toUpperCase()} ${c.id}`).join('  ·  ');
     const rem = f.remediation ? f.remediation.replace(/</g,'&lt;').replace(/>/g,'&gt;') : '';
     return `<tr id="row-${i}">
       <td><span class="badge badge-${f.status}">${f.status}</span></td>
-      <td style="max-width:320px"><div style="font-weight:500">${f.title || f.id}</div>
+      <td style="max-width:300px"><div style="font-weight:500">${f.title || f.id}</div>
         <div style="font-size:0.72rem;color:var(--muted)">${f.id}</div>
-        ${rem ? `<div class="remediation" id="rem-${i}">${rem}</div>` : ''}
-      </td>
+        ${rem ? `<div class="remediation" id="rem-${i}">${rem}</div>` : ''}</td>
       <td><span class="int-tag">${f.integration || '—'}</span></td>
       <td>${f.severity ? `<span class="badge badge-${f.severity}">${f.severity}</span>` : '—'}</td>
       <td class="controls-list">${controls || '—'}</td>
@@ -330,24 +635,15 @@ function renderFindings(findings) {
 }
 
 function sortFindings(field, th) {
-  // Toggle sort direction if same field, otherwise start ascending
-  if (currentSort.field === field) {
-    currentSort.asc = !currentSort.asc;
-  } else {
-    currentSort.field = field;
-    currentSort.asc = true;
-  }
-  
-  // Update header styling
+  currentSort = { field, asc: currentSort.field === field ? !currentSort.asc : true };
   document.querySelectorAll('.findings-table th').forEach(h => {
     h.classList.remove('sorted');
-    const icon = h.querySelector('.sort-icon');
-    if (icon) icon.textContent = '↕';
+    const ic = h.querySelector('.sort-icon');
+    if (ic) ic.textContent = '↕';
   });
   th.classList.add('sorted');
-  const icon = th.querySelector('.sort-icon');
-  if (icon) icon.textContent = currentSort.asc ? '↑' : '↓';
-  
+  const ic = th.querySelector('.sort-icon');
+  if (ic) ic.textContent = currentSort.asc ? '↑' : '↓';
   renderFindings(allFindings);
 }
 
@@ -361,59 +657,246 @@ function toggleRem(i) {
 
 function filterFindings(filter, btn) {
   currentFilter = filter;
-  // Update active state on filter buttons only (not sort buttons)
   document.querySelectorAll('.section-header .tab').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
   renderFindings(allFindings);
 }
 
+// ── History ───────────────────────────────────────────────────────────────
 function renderHistory(history) {
   const list = document.getElementById('history-list');
-  if (!history.length) {
-    list.innerHTML = '<div class="empty">No scan history yet.</div>';
-    return;
-  }
+  if (!history.length) { list.innerHTML = '<div class="empty">No scan history yet.</div>'; return; }
   list.innerHTML = history.map(r => `
     <div class="history-item" onclick="loadRecord('${r.id}')">
       <span class="ts">${new Date(r.collected_at).toLocaleString()}</span>
       <span class="fw">${r.framework}</span>
       <span style="color:var(--pass);font-size:0.8rem">✓ ${r.passed}</span>
       <span style="color:var(--fail);font-size:0.8rem">✗ ${r.failed}</span>
-      <div class="mini-bar">
-        <div class="mini-bar-fill" style="width:${r.score}%;background:${scoreColor(r.score)}"></div>
-      </div>
+      <div class="mini-bar"><div class="mini-bar-fill" style="width:${r.score}%;background:${scoreColor(r.score)}"></div></div>
       <span class="score-num" style="color:${scoreColor(r.score)}">${r.score}</span>
     </div>`).join('');
 }
 
 async function loadRecord(id) {
-  const r = await fetch(`/api/record/${id}`).then(res => res.json());
+  const r = await authFetch(`/api/record/${id}`).then(res => res.json());
   allFindings = r.findings || [];
   renderScoreCards(r);
   renderFindings(allFindings);
   renderIntegrationGroups(allFindings);
-  document.getElementById('last-scan').textContent =
-    `Viewing: ${id} · ${r.framework.toUpperCase()}`;
+  document.getElementById('last-scan').textContent = `Viewing: ${id} · ${r.framework.toUpperCase()}`;
   showTab('findings');
 }
 
-function showTab(name) {
-  ['overview','findings','history'].forEach(t => {
-    document.getElementById('tab-'+t).style.display = t === name ? '' : 'none';
+// ── Checks catalog ────────────────────────────────────────────────────────
+async function loadChecks() {
+  const resp = await authFetch('/api/checks?include_disabled=true');
+  if (!resp.ok) return;
+  const data = await resp.json();
+  allChecks = data.checks || [];
+
+  // Populate integration filter
+  const ints = [...new Set(allChecks.map(c => c.integration))].sort();
+  const sel = document.getElementById('checks-int-filter');
+  sel.innerHTML = '<option value="">All Integrations</option>' +
+    ints.map(i => `<option value="${i}">${i}</option>`).join('');
+
+  renderChecksTable();
+}
+
+function renderChecksTable() {
+  const fw     = document.getElementById('checks-fw-filter').value;
+  const intg   = document.getElementById('checks-int-filter').value.toLowerCase();
+  const status = document.getElementById('checks-status-filter').value;
+  const search = (document.getElementById('checks-search').value || '').toLowerCase();
+
+  let rows = allChecks.filter(c => {
+    if (fw && !(c.frameworks || []).includes(fw)) return false;
+    if (intg && c.integration.toLowerCase() !== intg) return false;
+    if (status === 'enabled' && !c.enabled) return false;
+    if (status === 'disabled' && c.enabled) return false;
+    if (search && !c.title.toLowerCase().includes(search) && !c.id.toLowerCase().includes(search)) return false;
+    return true;
   });
-  document.querySelectorAll('nav button').forEach((b, i) => {
-    b.classList.toggle('active', ['overview','findings','history'][i] === name);
+
+  const enabled = rows.filter(c => c.enabled).length;
+  document.getElementById('checks-stat').textContent =
+    `${rows.length} shown · ${enabled} enabled · ${rows.length - enabled} disabled`;
+
+  const tbody = document.getElementById('checks-tbody');
+  if (!rows.length) { tbody.innerHTML = '<tr><td colspan="6" class="empty" style="padding:2rem">No checks match</td></tr>'; return; }
+
+  tbody.innerHTML = rows.map(c => {
+    const fwBadges = (c.frameworks || []).map(f => `<span class="fw-tag">${f}</span>`).join('');
+    const controls = (c.controls || []).map(ctrl => `${String(ctrl.framework).toUpperCase()} ${ctrl.id}`).join('  ·  ');
+    const checkedAttr = c.enabled ? 'checked' : '';
+    return `<tr style="${c.enabled ? '' : 'opacity:0.5'}">
+      <td>
+        <label class="toggle" title="${c.enabled ? 'Disable' : 'Enable'} this check">
+          <input type="checkbox" ${checkedAttr} onchange="toggleCheck('${c.id}', this.checked)"/>
+          <span class="toggle-slider"></span>
+        </label>
+      </td>
+      <td style="max-width:240px">
+        <div style="font-weight:500;font-size:0.82rem">${c.title}</div>
+        <div style="font-size:0.7rem;color:var(--muted)">${c.id}</div>
+      </td>
+      <td><span class="int-tag">${c.integration}</span></td>
+      <td>${c.severity ? `<span class="badge badge-${c.severity}">${c.severity}</span>` : '—'}</td>
+      <td style="max-width:200px">${fwBadges || '—'}</td>
+      <td class="controls-list" style="max-width:220px;font-size:0.68rem">${controls || '—'}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function toggleCheck(id, enabled) {
+  const resp = await authFetch(`/api/admin/checks/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled }),
+  });
+  if (!resp.ok) {
+    alert('Failed to update check. Please try again.');
+    loadChecks();
+    return;
+  }
+  // Update local state
+  const c = allChecks.find(x => x.id === id);
+  if (c) c.enabled = enabled;
+  renderChecksTable();
+}
+
+// ── Admin panel ───────────────────────────────────────────────────────────
+async function loadAdmin() {
+  const [orgsResp, usersResp] = await Promise.all([
+    authFetch('/api/admin/orgs'),
+    authFetch('/api/admin/users'),
+  ]);
+  const orgs  = orgsResp.ok  ? await orgsResp.json()  : [];
+  const users = usersResp.ok ? await usersResp.json() : [];
+
+  document.getElementById('org-count').textContent  = `${(orgs  || []).length} total`;
+  document.getElementById('user-count').textContent = `${(users || []).length} total`;
+
+  const orgsEl = document.getElementById('orgs-tbody');
+  orgsEl.innerHTML = (orgs || []).map(o => `<tr>
+    <td style="font-weight:500">${o.slug}</td>
+    <td>${o.name}</td>
+    <td><span class="fw-tag">${o.plan || 'free'}</span></td>
+    <td style="color:var(--muted);font-size:0.75rem">${new Date(o.created_at).toLocaleDateString()}</td>
+  </tr>`).join('') || '<tr><td colspan="4" class="empty">No orgs yet</td></tr>';
+
+  const usersEl = document.getElementById('users-tbody');
+  usersEl.innerHTML = (users || []).map(u => `<tr>
+    <td style="font-weight:500">${u.email}</td>
+    <td><span class="role-badge ${u.role === 'super_admin' ? 'super' : ''}">${(u.role || '').replace('_',' ')}</span></td>
+    <td style="font-size:0.75rem;color:var(--muted)">${u.org_id || '—'}</td>
+    <td>
+      <button class="btn btn-sm" style="background:var(--bg);border:1px solid var(--border);color:var(--text)"
+        onclick="promptResetPassword('${u.email}')">Reset</button>
+    </td>
+  </tr>`).join('') || '<tr><td colspan="4" class="empty">No users yet</td></tr>';
+}
+
+async function createOrg() {
+  const slug  = document.getElementById('org-slug').value.trim();
+  const name  = document.getElementById('org-name').value.trim();
+  const email = document.getElementById('org-admin-email').value.trim();
+  const pass  = document.getElementById('org-admin-password').value;
+  const msgEl = document.getElementById('org-msg');
+  msgEl.textContent = '';
+
+  if (!slug || !name || !email || !pass) {
+    msgEl.className = 'form-error';
+    msgEl.textContent = 'All fields are required.';
+    return;
+  }
+  const resp = await authFetch('/api/admin/orgs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ slug, name, admin_email: email, admin_password: pass }),
+  });
+  const data = await resp.json();
+  if (!resp.ok) {
+    msgEl.className = 'form-error';
+    msgEl.textContent = data.error || 'Failed to create org.';
+    return;
+  }
+  msgEl.className = 'form-success';
+  msgEl.textContent = `✓ Org "${data.name}" created.`;
+  ['org-slug','org-name','org-admin-email','org-admin-password'].forEach(id => document.getElementById(id).value = '');
+  loadAdmin();
+}
+
+async function createUser() {
+  const email  = document.getElementById('new-user-email').value.trim();
+  const pass   = document.getElementById('new-user-password').value;
+  const orgID  = document.getElementById('new-user-orgid').value.trim();
+  const role   = document.getElementById('new-user-role').value;
+  const msgEl  = document.getElementById('user-msg');
+  msgEl.textContent = '';
+
+  if (!email || !pass) {
+    msgEl.className = 'form-error';
+    msgEl.textContent = 'Email and password are required.';
+    return;
+  }
+  const body = { email, password: pass, role };
+  if (orgID) body.org_id = orgID;
+
+  const resp = await authFetch('/api/admin/create-user', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await resp.json();
+  if (!resp.ok) {
+    msgEl.className = 'form-error';
+    msgEl.textContent = data.error || 'Failed to create user.';
+    return;
+  }
+  msgEl.className = 'form-success';
+  msgEl.textContent = `✓ User "${data.email}" created.`;
+  ['new-user-email','new-user-password','new-user-orgid'].forEach(id => document.getElementById(id).value = '');
+  loadAdmin();
+}
+
+async function promptResetPassword(email) {
+  const pass = prompt(`New password for ${email}:`);
+  if (!pass) return;
+  const resp = await authFetch('/api/admin/reset-password', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password: pass }),
+  });
+  if (resp.ok) { alert(`✓ Password reset for ${email}`); }
+  else { const d = await resp.json(); alert('Error: ' + (d.error || 'unknown')); }
+}
+
+function showAdminSection(section) {
+  ['orgs','users'].forEach(s => {
+    document.getElementById('admin-section-' + s).style.display = s === section ? '' : 'none';
+    document.getElementById('admin-tab-' + s).classList.toggle('active', s === section);
   });
 }
 
-if (window.__SHARE_RECORD_ID) {
-  document.querySelector('nav').style.display = 'none';
-  document.querySelector('.refresh-btn').style.display = 'none';
-  loadRecord(window.__SHARE_RECORD_ID);
-} else {
-  load();
-  setInterval(load, 60000);
+// ── Tab routing ───────────────────────────────────────────────────────────
+const tabNames = ['overview','findings','history','checks','admin'];
+
+function showTab(name) {
+  tabNames.forEach(t => {
+    const el = document.getElementById('tab-' + t);
+    if (el) el.style.display = t === name ? '' : 'none';
+  });
+  document.querySelectorAll('nav button').forEach(b => {
+    b.classList.toggle('active', b.textContent.toLowerCase() === name ||
+      (b.id === 'nav-' + name));
+  });
+
+  if (name === 'checks' && allChecks.length === 0) loadChecks();
+  if (name === 'admin') loadAdmin();
 }
+
+boot();
 </script>
 </body>
 </html>
