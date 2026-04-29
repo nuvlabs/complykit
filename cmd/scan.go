@@ -29,17 +29,20 @@ import (
 )
 
 var (
-	flagFramework    string
-	flagProfile      string
-	flagRegion       string
-	flagOutput       string
-	flagPDF          string
-	flagPush         bool
-	flagGHToken      string
-	flagGHOwner      string
-	flagOnly         string
-	flagTerraformDir string
-	flagControls     string
+	flagFramework      string
+	flagProfile        string
+	flagRegion         string
+	flagOutput         string
+	flagPDF            string
+	flagPush           bool
+	flagGHToken        string
+	flagGHOwner        string
+	flagOnly           string
+	flagTerraformDir   string
+	flagControls       string
+	flagGCPProject     string
+	flagAzureSub       string
+	flagKubeconfig     string
 )
 
 var scanCmd = &cobra.Command{
@@ -48,7 +51,10 @@ var scanCmd = &cobra.Command{
 	Example: `  comply scan --framework soc2
   comply scan --framework iso27001
   comply scan --framework pcidss --profile prod
-  comply scan --framework hipaa --github-owner myorg --output report.json`,
+  comply scan --framework hipaa --github-owner myorg --output report.json
+  comply scan --framework cis --gcp-project my-project
+  comply scan --framework soc2 --azure-subscription xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+  comply scan --framework hipaa --kubeconfig ~/.kube/prod.yaml`,
 	RunE: runScan,
 }
 
@@ -64,6 +70,9 @@ func init() {
 	scanCmd.Flags().BoolVar(&flagPush, "push", false, "Push results to ComplyKit server (uses credentials from `comply login`)")
 	scanCmd.Flags().StringVar(&flagTerraformDir, "terraform-dir", "", "Scan Terraform (.tf) files in this directory")
 	scanCmd.Flags().StringVar(&flagControls, "controls", "complykit.yaml", "Path to custom controls file")
+	scanCmd.Flags().StringVar(&flagGCPProject, "gcp-project", "", "GCP project ID to scan (default: GCP_PROJECT_ID env)")
+	scanCmd.Flags().StringVar(&flagAzureSub, "azure-subscription", "", "Azure subscription ID to scan (default: AZURE_SUBSCRIPTION_ID env)")
+	scanCmd.Flags().StringVar(&flagKubeconfig, "kubeconfig", "", "Path to kubeconfig file (default: KUBECONFIG env or ~/.kube/config)")
 	rootCmd.AddCommand(scanCmd)
 }
 
@@ -165,6 +174,9 @@ func runScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// GCP checks
+	if flagGCPProject != "" {
+		os.Setenv("GCP_PROJECT_ID", flagGCPProject)
+	}
 	if !want("gcp") {
 		dim.Println("  Skipping GCP (not in --only)")
 	} else if gcpChecker := gcpchecks.NewCheckerFromEnv(); gcpChecker != nil {
@@ -195,6 +207,9 @@ func runScan(cmd *cobra.Command, args []string) error {
 	}
 
 	// Azure checks
+	if flagAzureSub != "" {
+		os.Setenv("AZURE_SUBSCRIPTION_ID", flagAzureSub)
+	}
 	if !want("azure") {
 		dim.Println("  Skipping Azure (not in --only)")
 	} else if checker := azchecks.NewCheckerFromEnv(); checker != nil {
@@ -212,16 +227,24 @@ func runScan(cmd *cobra.Command, args []string) error {
 	// Kubernetes workload checks
 	if !want("kubernetes") {
 		dim.Println("  Skipping Kubernetes (not in --only)")
-	} else if checker := k8schecks.NewCheckerFromEnv(); checker != nil {
-		dim.Printf("  Scanning %s...\n", checker.Integration())
-		findings, err := checker.Run()
-		if err != nil {
-			fmt.Fprintf(os.Stderr, "  warning: Kubernetes: %v\n", err)
-		} else {
-			addFiltered(result, findings, flagFramework)
-		}
 	} else {
-		dim.Println("  Skipping Kubernetes (no kubeconfig found — set KUBECONFIG or place at ~/.kube/config)")
+		var k8sChecker *k8schecks.Checker
+		if flagKubeconfig != "" {
+			k8sChecker, _ = k8schecks.NewCheckerFromKubeconfig(flagKubeconfig)
+		} else {
+			k8sChecker = k8schecks.NewCheckerFromEnv()
+		}
+		if k8sChecker != nil {
+			dim.Printf("  Scanning %s...\n", k8sChecker.Integration())
+			findings, err := k8sChecker.Run()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "  warning: Kubernetes: %v\n", err)
+			} else {
+				addFiltered(result, findings, flagFramework)
+			}
+		} else {
+			dim.Println("  Skipping Kubernetes (no kubeconfig found — use --kubeconfig, set KUBECONFIG, or place at ~/.kube/config)")
+		}
 	}
 
 	// GitHub checks
