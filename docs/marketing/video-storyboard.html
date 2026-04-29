@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ComplyKit Instagram Video Storyboard</title>
+    <style>
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .storyboard {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        h1 {
+            text-align: center;
+            font-size: 2.5em;
+            margin-bottom: 40px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        
+        .scene {
+            background: rgba(255,255,255,0.1);
+            border-radius: 15px;
+            padding: 30px;
+            margin: 30px 0;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
+        
+        .scene-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .scene-number {
+            background: #6366F1;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        
+        .scene-duration {
+            background: rgba(255,255,255,0.2);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        .scene-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+        }
+        
+        .visual-frame {
+            background: #1a1a1a;
+            border-radius: 15px;
+            aspect-ratio: 9/16;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            border: 3px solid #6366F1;
+        }
+        
+        .phone-mockup {
+            width: 200px;
+            height: 355px;
+            background: linear-gradient(45deg, #1a1a1a, #2a2a2a);
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        
+        .scene-details h3 {
+            color: #fbbf24;
+            margin-top: 0;
+        }
+        
+        .scene-details ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        .scene-details li {
+            background: rgba(255,255,255,0.1);
+            margin: 10px 0;
+            padding: 10px 15px;
+            border-radius: 8px;
+            border-left: 4px solid #10b981;
+        }
+        
+        .code-snippet {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.9em;
+            margin: 10px 0;
+            border-left: 4px solid #6366F1;
+        }
+        
+        .text-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.7);
+            color: white;
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+        }
+        
+        .cta-button {
+            background: linear-gradient(45deg, #6366F1, #8b5cf6);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 25px;
+            border: none;
+            font-weight: bold;
+            font-size: 1.1em;
+            cursor: pointer;
+            box-shadow: 0 10px 25px rgba(99, 102, 241, 0.3);
+            transition: all 0.3s ease;
+        }
+        
+        .cta-button:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 15px 35px rgba(99, 102, 241, 0.4);
+        }
+        
+        .production-notes {
+            background: rgba(255, 193, 7, 0.1);
+            border: 1px solid rgba(255, 193, 7, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .production-notes h4 {
+            color: #fbbf24;
+            margin-top: 0;
+        }
+        
+        @media (max-width: 768px) {
+            .scene-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .phone-mockup {
+                width: 150px;
+                height: 267px;
+                padding: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="storyboard">
+        <h1>🎬 ComplyKit Instagram Video Storyboard</h1>
+        
+        <!-- Scene 1 -->
+        <div class="scene">
+            <div class="scene-header">
+                <div class="scene-number">Scene 1</div>
+                <div class="scene-duration">0-8 seconds</div>
+            </div>
+            <div class="scene-content">
+                <div class="visual-frame">
+                    <div class="phone-mockup">
+                        <div class="text-overlay">SOC 2 taking forever? 😩</div>
+                        <div style="margin-top: 50px; color: #666; text-align: center;">
+                            📊 Spreadsheets<br>
+                            📋 Manual checks<br>
+                            😫 Frustrated dev
+                        </div>
+                    </div>
+                </div>
+                <div class="scene-details">
+                    <h3>The Problem Hook</h3>
+                    <ul>
+                        <li>🎯 Show frustrated developer</li>
+                        <li>📱 Screen record compliance spreadsheets</li>
+                        <li>🎵 Upbeat music starts</li>
+                        <li>⚡ Quick cuts, high energy</li>
+                    </ul>
+                    <div class="production-notes">
+                        <h4>📝 Production Notes</h4>
+                        <p>Use authentic developer workspace. Show real compliance docs/spreadsheets. Keep it relatable but not too negative.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scene 2 -->
+        <div class="scene">
+            <div class="scene-header">
+                <div class="scene-number">Scene 2</div>
+                <div class="scene-duration">8-15 seconds</div>
+            </div>
+            <div class="scene-content">
+                <div class="visual-frame">
+                    <div class="phone-mockup">
+                        <div class="text-overlay">Meet ComplyKit ⚡</div>
+                        <div class="code-snippet" style="margin-top: 40px; font-size: 0.7em;">
+$ brew install complykit<br>
+$ comply init<br>
+✅ Setup complete
+                        </div>
+                    </div>
+                </div>
+                <div class="scene-details">
+                    <h3>Solution Introduction</h3>
+                    <ul>
+                        <li>💻 Clean terminal interface</li>
+                        <li>🚀 ComplyKit logo animation</li>
+                        <li>⌨️ Live typing effect</li>
+                        <li>🎯 Simple installation demo</li>
+                    </ul>
+                    <div class="production-notes">
+                        <h4>📝 Production Notes</h4>
+                        <p>Use authentic terminal with ComplyKit branding. Smooth zoom transition from previous scene.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scene 3 -->
+        <div class="scene">
+            <div class="scene-header">
+                <div class="scene-number">Scene 3</div>
+                <div class="scene-duration">15-25 seconds</div>
+            </div>
+            <div class="scene-content">
+                <div class="visual-frame">
+                    <div class="phone-mockup">
+                        <div class="text-overlay">From Months to Minutes</div>
+                        <div class="code-snippet" style="margin-top: 40px; font-size: 0.6em;">
+$ comply scan aws<br>
+<span style="color: #10b981;">✅ 47 checks passed</span><br>
+<span style="color: #f59e0b;">❌ 3 issues found</span><br>
+<span style="color: #6366f1;">🔧 Auto-fix available</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="scene-details">
+                    <h3>Speed & Automation</h3>
+                    <ul>
+                        <li>⚡ Split screen: Before/After</li>
+                        <li>🏃‍♂️ Speed up scanning animation</li>
+                        <li>✅ Real-time results</li>
+                        <li>🔧 Show auto-fix capability</li>
+                    </ul>
+                    <div class="production-notes">
+                        <h4>📝 Production Notes</h4>
+                        <p>Use real ComplyKit output. Speed up the scanning process for dramatic effect. Show genuine check results.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scene 4 -->
+        <div class="scene">
+            <div class="scene-header">
+                <div class="scene-number">Scene 4</div>
+                <div class="scene-duration">25-35 seconds</div>
+            </div>
+            <div class="scene-content">
+                <div class="visual-frame">
+                    <div class="phone-mockup">
+                        <div class="text-overlay">Automated Evidence Collection 🤖</div>
+                        <div style="margin-top: 50px; color: #10b981; text-align: center; font-size: 0.8em;">
+                            📊 Dashboard<br>
+                            📁 Auto-evidence<br>
+                            📈 Real-time monitoring
+                        </div>
+                    </div>
+                </div>
+                <div class="scene-details">
+                    <h3>Automation Features</h3>
+                    <ul>
+                        <li>📊 Dashboard with live data</li>
+                        <li>🤖 Evidence auto-generation</li>
+                        <li>📈 Real-time compliance status</li>
+                        <li>🔄 Continuous monitoring</li>
+                    </ul>
+                    <div class="production-notes">
+                        <h4>📝 Production Notes</h4>
+                        <p>Screen record actual dashboard. Show evidence files being created automatically. Keep UI clean and professional.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scene 5 -->
+        <div class="scene">
+            <div class="scene-header">
+                <div class="scene-number">Scene 5</div>
+                <div class="scene-duration">35-45 seconds</div>
+            </div>
+            <div class="scene-content">
+                <div class="visual-frame">
+                    <div class="phone-mockup">
+                        <div class="text-overlay">Works Everywhere 🌍</div>
+                        <div style="margin-top: 50px; text-align: center; font-size: 0.7em;">
+                            <div style="color: #ff9500;">AWS</div>
+                            <div style="color: #0078d4;">Azure</div>
+                            <div style="color: #4285f4;">GCP</div>
+                            <div style="color: #326ce5;">Kubernetes</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="scene-details">
+                    <h3>Multi-Cloud Support</h3>
+                    <ul>
+                        <li>☁️ AWS, Azure, GCP logos</li>
+                        <li>⚙️ Kubernetes integration</li>
+                        <li>🔄 Quick platform switching</li>
+                        <li>🌐 Universal compatibility</li>
+                    </ul>
+                    <div class="production-notes">
+                        <h4>📝 Production Notes</h4>
+                        <p>Show multiple cloud platforms. Use official logos/colors. Demonstrate platform-agnostic approach.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Scene 6 -->
+        <div class="scene">
+            <div class="scene-header">
+                <div class="scene-number">Scene 6</div>
+                <div class="scene-duration">45-60 seconds</div>
+            </div>
+            <div class="scene-content">
+                <div class="visual-frame">
+                    <div class="phone-mockup">
+                        <div class="text-overlay">Join 1000+ Teams Already Compliant ✨</div>
+                        <div style="margin-top: 60px; text-align: center;">
+                            <button class="cta-button">Try ComplyKit Free</button>
+                            <div style="margin-top: 15px; color: #888; font-size: 0.8em;">Link in Bio ↗️</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="scene-details">
+                    <h3>Call to Action</h3>
+                    <ul>
+                        <li>✨ Success dashboard</li>
+                        <li>😊 Happy developer</li>
+                        <li>📊 Clean compliance report</li>
+                        <li>🎯 Strong CTA</li>
+                    </ul>
+                    <div class="production-notes">
+                        <h4>📝 Production Notes</h4>
+                        <p>End on a high note. Show successful implementation. Make CTA prominent and compelling.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="scene" style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3);">
+            <h2 style="text-align: center; color: #10b981;">🚀 Ready to Create Your Video?</h2>
+            <div style="text-align: center; padding: 20px;">
+                <p style="font-size: 1.1em; margin-bottom: 30px;">
+                    Use this storyboard as your guide. Remember to keep it fast-paced, 
+                    authentic, and focused on the developer experience!
+                </p>
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin: 30px 0;">
+                    <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px;">
+                        <h4>📱 Aspect Ratio</h4>
+                        <p>9:16 (1080x1920)<br>Perfect for Instagram Reels</p>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px;">
+                        <h4>⏱️ Duration</h4>
+                        <p>60 seconds max<br>Hook in first 3 seconds</p>
+                    </div>
+                    <div style="background: rgba(255,255,255,0.1); padding: 20px; border-radius: 10px;">
+                        <h4>🎨 Brand Colors</h4>
+                        <p>#6366F1 (Primary)<br>#10B981 (Success)</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add some interactive elements
+        document.querySelectorAll('.cta-button').forEach(button => {
+            button.addEventListener('click', () => {
+                alert('🚀 Ready to start your ComplyKit journey? Visit complykit.com');
+            });
+        });
+    </script>
+</body>
+</html>
