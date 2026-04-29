@@ -34,11 +34,39 @@ func (c *Checker) Integration() string { return "Policy" }
 
 func (c *Checker) Run() ([]engine.Finding, error) {
 	var findings []engine.Finding
+	findings = append(findings, c.checkBackupRestoreTest()...)
 	findings = append(findings, c.checkPenTestEvidence()...)
 	findings = append(findings, c.checkIncidentResponseRunbook()...)
 	findings = append(findings, c.checkDataClassification()...)
 	findings = append(findings, c.checkVendorRisk()...)
 	return findings, nil
+}
+
+// ── Backup restore test evidence ──────────────────────────────────────────────
+
+func (c *Checker) checkBackupRestoreTest() []engine.Finding {
+	patterns := []string{"backup-restore*", "restore-test*", "dr-test*", "disaster-recovery*", "backup_restore*"}
+	file, age := findEvidenceFile(c.evidenceDir, patterns)
+	if file != "" {
+		if age <= 365*24*time.Hour {
+			return []engine.Finding{pass("cross_backup_restore_test",
+				fmt.Sprintf("Backup restore test evidence found: %s (%.0f days old)", filepath.Base(file), age.Hours()/24),
+				soc2("CC9.1"), hipaa("164.308(a)(7)(ii)(D)"))}
+		}
+		return []engine.Finding{fail(
+			"cross_backup_restore_test",
+			fmt.Sprintf("Backup restore test evidence is older than 1 year: %s (%.0f days)", filepath.Base(file), age.Hours()/24),
+			"Policy", "evidence", engine.SeverityHigh,
+			"Upload current year's restore test results to: "+c.evidenceDir+"/backup-restore-YYYY.pdf",
+			soc2("CC9.1"), hipaa("164.308(a)(7)(ii)(D)"),
+		)}
+	}
+	return []engine.Finding{fail(
+		"cross_backup_restore_test", "No backup restore test evidence found",
+		"Policy", "evidence", engine.SeverityHigh,
+		fmt.Sprintf("Document annual backup restore tests in %s/ with filename starting 'backup-restore' or 'restore-test'.\n  Accepted formats: .pdf, .md, .txt, .json", c.evidenceDir),
+		soc2("CC9.1"), hipaa("164.308(a)(7)(ii)(D)"),
+	)}
 }
 
 // ── Pen test evidence ─────────────────────────────────────────────────────────
