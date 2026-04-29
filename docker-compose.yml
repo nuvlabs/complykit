@@ -1,4 +1,6 @@
 services:
+
+  # ── PostgreSQL ─────────────────────────────────────────────────────────────
   postgres:
     image: postgres:16-alpine
     environment:
@@ -11,54 +13,94 @@ services:
       test: ["CMD-SHELL", "pg_isready -U complykit"]
       interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
+    restart: unless-stopped
     networks:
       - complykit
 
+  # ── ComplyKit API ──────────────────────────────────────────────────────────
   backend:
-    build: .
+    build:
+      context: .
+      args:
+        VERSION: ${VERSION:-dev}
+        COMMIT: ${COMMIT:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
     ports:
-      - "8080:8080"
+      - "${BACKEND_PORT:-8080}:8080"
     depends_on:
       postgres:
         condition: service_healthy
     volumes:
       - evidence:/app/.complykit-evidence
+      # AWS credentials and kubeconfig (read-only)
       - ${HOME}/.aws:/root/.aws:ro
       - ${HOME}/.kube:/root/.kube:ro
+      # GCP Application Default Credentials (read-only)
+      - ${HOME}/.config/gcloud:/root/.config/gcloud:ro
     environment:
+      # ── Database ──────────────────────────────────────────────────────────
       DATABASE_URL: postgres://complykit:${POSTGRES_PASSWORD:-complykit}@postgres:5432/complykit
+
+      # ── Auth ──────────────────────────────────────────────────────────────
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       SUPER_ADMIN_EMAIL: ${SUPER_ADMIN_EMAIL:-}
       SUPER_ADMIN_PASSWORD: ${SUPER_ADMIN_PASSWORD:-}
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+
+      # ── Tenant ────────────────────────────────────────────────────────────
       ORG_SLUG: ${ORG_SLUG:-default}
       ORG_NAME: ${ORG_NAME:-Default Org}
+
+      # ── AWS ───────────────────────────────────────────────────────────────
       AWS_PROFILE: ${AWS_PROFILE:-default}
+      # Explicit keys override the profile (leave blank to use profile/IAM role):
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:-}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:-}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+
+      # ── GitHub ────────────────────────────────────────────────────────────
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       GITHUB_OWNER: ${GITHUB_OWNER:-}
-      # AWS explicit keys (optional):
-      # AWS_ACCESS_KEY_ID:
-      # AWS_SECRET_ACCESS_KEY:
-      # AWS_SESSION_TOKEN:
-      # AWS_REGION:
-      # GCP (optional):
-      # GCP_PROJECT_ID:
-      # Azure (optional):
-      # AZURE_SUBSCRIPTION_ID:
-      # AZURE_CLIENT_ID:
-      # AZURE_CLIENT_SECRET:
-      # AZURE_TENANT_ID:
+
+      # ── GCP ───────────────────────────────────────────────────────────────
+      GCP_PROJECT_ID: ${GCP_PROJECT_ID:-}
+      GOOGLE_CLOUD_PROJECT: ${GCP_PROJECT_ID:-}
+      # Set GOOGLE_APPLICATION_CREDENTIALS if not using ADC from ~/.config/gcloud:
+      # GOOGLE_APPLICATION_CREDENTIALS: /run/secrets/gcp-sa-key.json
+
+      # ── Azure ─────────────────────────────────────────────────────────────
+      AZURE_SUBSCRIPTION_ID: ${AZURE_SUBSCRIPTION_ID:-}
+      AZURE_TENANT_ID: ${AZURE_TENANT_ID:-}
+      AZURE_CLIENT_ID: ${AZURE_CLIENT_ID:-}
+      AZURE_CLIENT_SECRET: ${AZURE_CLIENT_SECRET:-}
+
+      # ── Kubernetes image registry allowlist ───────────────────────────────
+      # Comma-separated prefixes. Leave blank to skip registry check.
+      ALLOWED_REGISTRIES: ${ALLOWED_REGISTRIES:-}
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/api/health || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    restart: unless-stopped
     networks:
       - complykit
 
+  # ── ComplyKit UI ───────────────────────────────────────────────────────────
   ui:
-    build: ../complykit-ui
+    build:
+      context: ../complykit-ui
     ports:
-      - "3000:3000"
+      - "${UI_PORT:-3000}:3000"
     environment:
       API_URL: http://backend:8080
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
     networks:
       - complykit
 

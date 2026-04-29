@@ -129,6 +129,11 @@ func runServe(cmd *cobra.Command, args []string) error {
 
 	// ── Public routes ──────────────────────────────────────────────────────────
 
+	mux.HandleFunc("/api/health", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write([]byte(`{"status":"ok"}`))
+	})
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		data, err := dashboardHTML.ReadFile("dashboard.html")
 		if err != nil {
