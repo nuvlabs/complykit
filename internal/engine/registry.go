@@ -263,4 +263,17 @@ var Registry = []CheckInfo{
 		Controls:   []ControlRef{{FrameworkSOC2, "CC6.3"}, {FrameworkHIPAA, "164.312(a)(1)"}, ISO27001("A.9.1.2"), PCIDSS("7.2.2")}},
 	{ID: "db_schema_audit_table", Title: "Audit log table exists in database schema", Severity: "medium", Integration: "Database",
 		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
-		Controls:   []ControlRef{{FrameworkSOC2, "CC7.2"}, {FrameworkHIPAA, "164.312(b)"}, ISO27001("A.12.4.1"), PCIDSS("10.2.1")}}}
+		Controls:   []ControlRef{{FrameworkSOC2, "CC7.2"}, {FrameworkHIPAA, "164.312(b)"}, ISO27001("A.12.4.1"), PCIDSS("10.2.1")}},
+
+	// ── AWS Macie ─────────────────────────────────────────────────────────────
+	{ID: "aws_macie_enabled", Title: "Amazon Macie is enabled and actively scanning S3 for PII", Severity: "high", Integration: "AWS/Macie",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.8"}, {FrameworkHIPAA, "164.312(a)(2)(iv)"}, ISO27001("A.18.1.4"), PCIDSS("3.3.1")}},
+	{ID: "aws_macie_findings", Title: "No active HIGH/CRITICAL Macie PII findings in S3", Severity: "critical", Integration: "AWS/Macie",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.8"}, {FrameworkHIPAA, "164.312(a)(2)(iv)"}, ISO27001("A.18.1.4"), PCIDSS("3.3.1")}},
+
+	// ── GCP DLP ───────────────────────────────────────────────────────────────
+	{ID: "gcp_dlp_job_active", Title: "GCP DLP inspection job scanning Cloud Storage for PII", Severity: "high", Integration: "GCP",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.8"}, {FrameworkHIPAA, "164.312(a)(2)(iv)"}, ISO27001("A.18.1.4"), PCIDSS("3.3.1")}}}

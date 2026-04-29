@@ -96,6 +96,8 @@ github.com/aws/aws-sdk-go-v2/service/kms v1.50.5 h1:nEzwx/ZlpUZ2Y6WztsgYmfBh5Ixd
 github.com/aws/aws-sdk-go-v2/service/kms v1.50.5/go.mod h1:GBO/aaEi47QldDVoqw2CsM2UZQDoqDiFIMJD/ztHPs0=
 github.com/aws/aws-sdk-go-v2/service/lambda v1.89.1 h1:JxHLwNK5mIKsh2Q0APTSijdzkk5ccI4gyvYdar1JU/0=
 github.com/aws/aws-sdk-go-v2/service/lambda v1.89.1/go.mod h1:7qoh/MlWG5QCnZwq9bvdXomEAkmumayXcjEjIemIV7U=
+github.com/aws/aws-sdk-go-v2/service/macie2 v1.51.1 h1:pqxfuLWtNHVTOybxVzPA39SihgxhL7BK/Eew27Ae+ig=
+github.com/aws/aws-sdk-go-v2/service/macie2 v1.51.1/go.mod h1:cVZCUudpBhZWgzualBjHg/U+sq0ma2O1S6eMgE+yjfU=
 github.com/aws/aws-sdk-go-v2/service/organizations v1.51.2 h1:2TDersSNowBwSRTrnD0LxLilpr6Dr5coXwVsWO7f2rw=
 github.com/aws/aws-sdk-go-v2/service/organizations v1.51.2/go.mod h1:UMm4MKZDJMbuJZF5QOJBsVRMLeKiEXAgCXFpocWPDFo=
 github.com/aws/aws-sdk-go-v2/service/rds v1.118.1 h1:cywOPYUFOSOAjrovJNxuBXd6SV3osiP3KJ5p412IEJQ=

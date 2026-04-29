@@ -163,6 +163,13 @@ var ControlMap = map[string][]ControlRef{
 	"db_tls_connection_test":  {ISO27001("A.10.1.1"), PCIDSS("4.2.1")},
 	"db_rls_on_pii_tables":    {ISO27001("A.9.1.2"),  PCIDSS("7.2.2")},
 	"db_schema_audit_table":   {ISO27001("A.12.4.1"), PCIDSS("10.2.1")},
+
+	// ── AWS Macie ─────────────────────────────────────────────────────────────
+	"aws_macie_enabled":   {ISO27001("A.18.1.4"), PCIDSS("3.3.1")},
+	"aws_macie_findings":  {ISO27001("A.18.1.4"), PCIDSS("3.3.1")},
+
+	// ── GCP DLP ───────────────────────────────────────────────────────────────
+	"gcp_dlp_job_active":  {ISO27001("A.18.1.4"), PCIDSS("3.3.1")},
 }
 
 // EnrichWithFrameworks adds ISO 27001 and PCI DSS controls to a finding

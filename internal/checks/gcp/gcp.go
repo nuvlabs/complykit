@@ -44,6 +44,7 @@ func (c *Checker) Run() ([]engine.Finding, error) {
 	out = append(out, c.checkFirewallRules()...)
 	out = append(out, c.checkVPCFlowLogs()...)
 	out = append(out, c.checkCloudSQL()...)
+	out = append(out, c.checkDLPJobs()...)
 	return out, nil
 }
 
