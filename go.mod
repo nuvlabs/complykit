@@ -17,7 +17,7 @@ require (
 	github.com/aws/aws-sdk-go-v2/config v1.32.15
 	github.com/aws/aws-sdk-go-v2/service/accessanalyzer v1.47.1
 	github.com/aws/aws-sdk-go-v2/service/backup v1.55.1
-	github.com/aws/aws-sdk-go-v2/service/cloudtrail v1.55.9
+	github.com/aws/aws-sdk-go-v2/service/cloudtrail v1.55.10
 	github.com/aws/aws-sdk-go-v2/service/cloudwatch v1.56.2
 	github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs v1.69.1
 	github.com/aws/aws-sdk-go-v2/service/configservice v1.62.2
