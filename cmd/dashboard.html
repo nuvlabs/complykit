@@ -104,9 +104,16 @@
     .history-item .ts { font-size: 0.8rem; color: var(--muted); min-width: 170px; }
     .history-item .fw { font-size: 0.75rem; background: rgba(99,102,241,0.12); color: var(--brand);
                         border-radius: 4px; padding: 0.1rem 0.4rem; font-weight: 600; text-transform: uppercase; }
-    .history-item .score-num { font-size: 1.1rem; font-weight: 700; margin-left: auto; }
+    .history-item .score-num { font-size: 1.1rem; font-weight: 700; }
+    .history-item .pdf-btn { background: none; border: 1px solid var(--border); border-radius: 6px;
+                              padding: 0.25rem 0.5rem; cursor: pointer; color: var(--muted); font-size: 0.72rem;
+                              margin-left: auto; white-space: nowrap; transition: all 0.15s; }
+    .history-item .pdf-btn:hover { border-color: var(--brand); color: var(--brand); background: rgba(99,102,241,0.06); }
     .mini-bar { height: 4px; width: 80px; background: var(--border); border-radius: 2px; overflow: hidden; }
     .mini-bar-fill { height: 100%; border-radius: 2px; }
+    /* ── Integration score chart ─────────────────────────────────────────── */
+    .intg-chart-wrap { margin-top: 1rem; overflow-x: auto; }
+    .intg-chart-canvas { width: 100%; min-width: 400px; }
 
     /* ── Common helpers ──────────────────────────────────────────────────── */
     .empty { text-align: center; padding: 3rem; color: var(--muted); }
@@ -263,6 +270,13 @@
 
   <!-- History tab -->
   <div id="tab-history" style="display:none">
+    <div class="card" style="margin-bottom:1rem">
+      <div class="section-header"><h2>Score Over Time</h2></div>
+      <div class="intg-chart-wrap">
+        <canvas id="intg-chart" class="intg-chart-canvas" height="200"></canvas>
+      </div>
+      <div id="intg-legend" style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:0.75rem;font-size:0.75rem"></div>
+    </div>
     <div class="card">
       <div class="section-header"><h2>Scan History</h2></div>
       <div class="history-list" id="history-list"></div>
@@ -457,6 +471,9 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.getElementById('login-overlay').style.display !== 'none') {
     doLogin();
   }
+});
+window.addEventListener('resize', () => {
+  if (window._historyData) renderIntegrationChart(window._historyData);
 });
 
 function doLogout() {
@@ -663,7 +680,124 @@ function filterFindings(filter, btn) {
 }
 
 // ── History ───────────────────────────────────────────────────────────────
+const INTG_COLORS = {
+  'AWS/RDS':          '#f97316',
+  'AWS/EC2-Database': '#fb923c',
+  'AWS/DB-Access':    '#f59e0b',
+  'AWS/Macie':        '#fbbf24',
+  'AWS/CloudTrail':   '#d97706',
+  'AWS/IAM':          '#ef4444',
+  'AWS/S3':           '#f87171',
+  'AWS/GuardDuty':    '#dc2626',
+  'Kubernetes':       '#3b82f6',
+  'GitHub':           '#8b5cf6',
+  'GCP':              '#22c55e',
+  'Azure':            '#06b6d4',
+  'Terraform':        '#a78bfa',
+  'Database':         '#14b8a6',
+  'Overall':          '#6366f1',
+};
+function intgColor(name) {
+  if (INTG_COLORS[name]) return INTG_COLORS[name];
+  // deterministic fallback color from name hash
+  let h = 0; for (let c of name) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff;
+  const hue = Math.abs(h) % 360;
+  return `hsl(${hue},65%,52%)`;
+}
+
+let hiddenIntegrations = new Set();
+
+function renderIntegrationChart(history) {
+  const canvas = document.getElementById('intg-chart');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  const W = canvas.offsetWidth || 600, H = 200;
+  canvas.width = W * dpr; canvas.height = H * dpr;
+  canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+  ctx.scale(dpr, dpr);
+  ctx.clearRect(0, 0, W, H);
+
+  // Gather all integration names across all scans
+  const allIntg = new Set(['Overall']);
+  const sorted = [...history].reverse(); // oldest first for chart
+  for (const r of sorted) {
+    if (r.integration_scores) Object.keys(r.integration_scores).forEach(k => allIntg.add(k));
+  }
+
+  // Draw axes
+  const padL = 36, padR = 16, padT = 12, padB = 28;
+  const chartW = W - padL - padR, chartH = H - padT - padB;
+  ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
+  for (let y = 0; y <= 100; y += 25) {
+    const yp = padT + chartH - (y / 100) * chartH;
+    ctx.beginPath(); ctx.moveTo(padL, yp); ctx.lineTo(padL + chartW, yp); ctx.stroke();
+    ctx.fillStyle = '#94a3b8'; ctx.font = '9px system-ui'; ctx.textAlign = 'right';
+    ctx.fillText(y, padL - 4, yp + 3);
+  }
+
+  if (sorted.length < 2) {
+    ctx.fillStyle = '#94a3b8'; ctx.font = '12px system-ui'; ctx.textAlign = 'center';
+    ctx.fillText('Run more scans to see trends', W / 2, H / 2);
+    return;
+  }
+
+  const xStep = chartW / (sorted.length - 1);
+
+  // Draw x-axis labels
+  ctx.fillStyle = '#94a3b8'; ctx.font = '8px system-ui'; ctx.textAlign = 'center';
+  sorted.forEach((r, i) => {
+    const x = padL + i * xStep;
+    const d = new Date(r.collected_at);
+    ctx.fillText(`${d.getMonth()+1}/${d.getDate()}`, x, H - 6);
+  });
+
+  // Draw one line per integration + overall (dashed)
+  for (const intg of allIntg) {
+    if (hiddenIntegrations.has(intg)) continue;
+    const color = intgColor(intg);
+    ctx.strokeStyle = color; ctx.lineWidth = intg === 'Overall' ? 2 : 1.5;
+    if (intg === 'Overall') ctx.setLineDash([5, 3]); else ctx.setLineDash([]);
+
+    let inSegment = false;
+    sorted.forEach((r, i) => {
+      const score = intg === 'Overall' ? r.score
+        : (r.integration_scores && r.integration_scores[intg] !== undefined)
+          ? r.integration_scores[intg].score : null;
+      if (score === null) { inSegment = false; return; }
+      const x = padL + i * xStep;
+      const y = padT + chartH - (score / 100) * chartH;
+      if (!inSegment) { ctx.beginPath(); ctx.moveTo(x, y); inSegment = true; }
+      else ctx.lineTo(x, y);
+    });
+    if (inSegment) ctx.stroke();
+    ctx.setLineDash([]);
+  }
+
+  // Update legend
+  const legend = document.getElementById('intg-legend');
+  if (legend) {
+    legend.innerHTML = [...allIntg].map(intg => {
+      const hidden = hiddenIntegrations.has(intg);
+      const color = intgColor(intg);
+      return `<span onclick="toggleIntg('${intg}')" style="cursor:pointer;display:flex;align-items:center;gap:4px;opacity:${hidden?0.35:1}">
+        <span style="width:20px;height:3px;background:${color};display:inline-block;border-radius:2px;${intg==='Overall'?'border-top:1px dashed '+color+';background:transparent':''}"></span>
+        <span style="color:var(--muted)">${intg}</span>
+      </span>`;
+    }).join('');
+  }
+}
+
+function toggleIntg(name) {
+  if (hiddenIntegrations.has(name)) hiddenIntegrations.delete(name);
+  else hiddenIntegrations.add(name);
+  renderIntegrationChart(window._historyData || []);
+}
+
 function renderHistory(history) {
+  window._historyData = history;
+  renderIntegrationChart(history);
+
   const list = document.getElementById('history-list');
   if (!history.length) { list.innerHTML = '<div class="empty">No scan history yet.</div>'; return; }
   list.innerHTML = history.map(r => `
@@ -674,7 +808,20 @@ function renderHistory(history) {
       <span style="color:var(--fail);font-size:0.8rem">✗ ${r.failed}</span>
       <div class="mini-bar"><div class="mini-bar-fill" style="width:${r.score}%;background:${scoreColor(r.score)}"></div></div>
       <span class="score-num" style="color:${scoreColor(r.score)}">${r.score}</span>
+      <button class="pdf-btn" onclick="event.stopPropagation();downloadPDF('${r.id}','${r.framework}')">⬇ PDF</button>
     </div>`).join('');
+}
+
+function downloadPDF(id, framework) {
+  const token = getToken();
+  const url = `/api/export/${id}?format=pdf`;
+  const a = document.createElement('a');
+  a.href = url; a.download = `complykit-${framework}-${id}.pdf`;
+  // Pass auth header via fetch + blob since <a href> can't set headers
+  authFetch(url).then(r => r.blob()).then(blob => {
+    a.href = URL.createObjectURL(blob);
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  });
 }
 
 async function loadRecord(id) {

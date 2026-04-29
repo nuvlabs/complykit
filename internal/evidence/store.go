@@ -22,15 +22,56 @@ func DefaultDir() string {
 	return filepath.Join(home, ".complykit", "evidence")
 }
 
+// IntegrationScore holds per-integration pass/fail counts and score.
+type IntegrationScore struct {
+	Score  int `json:"score"`
+	Passed int `json:"passed"`
+	Failed int `json:"failed"`
+}
+
 type Record struct {
-	ID          string         `json:"id"`
-	CollectedAt time.Time      `json:"collected_at"`
-	Framework   string         `json:"framework"`
-	Score       int            `json:"score"`
-	Passed      int            `json:"passed"`
-	Failed      int            `json:"failed"`
-	Skipped     int            `json:"skipped"`
-	Findings    []engine.Finding `json:"findings"`
+	ID                string                      `json:"id"`
+	CollectedAt       time.Time                   `json:"collected_at"`
+	Framework         string                      `json:"framework"`
+	Score             int                         `json:"score"`
+	Passed            int                         `json:"passed"`
+	Failed            int                         `json:"failed"`
+	Skipped           int                         `json:"skipped"`
+	Findings          []engine.Finding            `json:"findings"`
+	IntegrationScores map[string]IntegrationScore `json:"integration_scores,omitempty"`
+}
+
+// ComputeIntegrationScores groups findings by Integration and returns per-integration scores.
+// Skip findings are excluded (same as overall score).
+func ComputeIntegrationScores(findings []engine.Finding) map[string]IntegrationScore {
+	type counts struct{ passed, failed int }
+	byIntg := map[string]*counts{}
+	for _, f := range findings {
+		if f.Integration == "" {
+			continue
+		}
+		c := byIntg[f.Integration]
+		if c == nil {
+			c = &counts{}
+			byIntg[f.Integration] = c
+		}
+		switch f.Status {
+		case engine.StatusPass:
+			c.passed++
+		case engine.StatusFail:
+			c.failed++
+		}
+	}
+	out := make(map[string]IntegrationScore, len(byIntg))
+	for intg, c := range byIntg {
+		total := c.passed + c.failed
+		score := 0
+		if total > 0 {
+			score = c.passed * 100 / total
+		}
+		out[intg] = IntegrationScore{Score: score, Passed: c.passed, Failed: c.failed}
+	}
+	return out
 }
 
 type Store struct {

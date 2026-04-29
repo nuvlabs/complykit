@@ -102,6 +102,7 @@ func runServe(cmd *cobra.Command, args []string) error {
 		if err := database.UpsertChecks(ctx, engine.Registry); err != nil {
 			return fmt.Errorf("seed checks catalog: %w", err)
 		}
+		validateRegistry()
 	} else {
 		fileStore := evidence.NewStore("")
 		store = &fileStoreAdapter{s: fileStore}
@@ -885,6 +886,24 @@ func runServe(cmd *cobra.Command, args []string) error {
 	fmt.Println()
 
 	return http.ListenAndServe(":"+flagServePort, mux)
+}
+
+// validateRegistry logs a warning for any check ID that fires at runtime but
+// has no Registry entry, which would cause it to be invisible in the catalog.
+func validateRegistry() {
+	registryIDs := map[string]bool{}
+	for _, c := range engine.Registry {
+		registryIDs[c.ID] = true
+	}
+	var missing []string
+	for id := range engine.ControlMap {
+		if !registryIDs[id] {
+			missing = append(missing, id)
+		}
+	}
+	if len(missing) > 0 {
+		fmt.Printf("  ⚠  %d check ID(s) in ControlMap but missing from Registry: %v\n", len(missing), missing)
+	}
 }
 
 func corsMiddleware(next http.Handler) http.Handler {

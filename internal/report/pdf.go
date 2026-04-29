@@ -69,6 +69,24 @@ func WritePDF(result *engine.ScanResult, framework, path string) error {
 	pdf.SetXY(20, 30)
 	pdf.Cell(0, 6, fmt.Sprintf("Generated: %s", time.Now().UTC().Format("2006-01-02 15:04 UTC")))
 
+	// integrations covered — collect from findings
+	intgSet := map[string]bool{}
+	for _, f := range result.Findings {
+		if f.Integration != "" {
+			intgSet[f.Integration] = true
+		}
+	}
+	intgList := make([]string, 0, len(intgSet))
+	for k := range intgSet {
+		intgList = append(intgList, k)
+	}
+	if len(intgList) > 0 {
+		pdf.SetFont("Helvetica", "", 8)
+		setTextHex(pdf, "#c7d2fe")
+		pdf.SetXY(20, 38)
+		pdf.Cell(0, 5, "Integrations: "+strings.Join(intgList, "  ·  "))
+	}
+
 	pdf.SetXY(0, 44)
 
 	// ── Score card ──────────────────────────────────────────────────
@@ -115,12 +133,80 @@ func WritePDF(result *engine.ScanResult, framework, path string) error {
 
 	pdf.SetXY(20, 80)
 
+	// ── Coverage summary ────────────────────────────────────────────
+	type intgStat struct {
+		name           string
+		passed, failed int
+	}
+	statMap := map[string]*intgStat{}
+	for _, f := range result.Findings {
+		if f.Integration == "" {
+			continue
+		}
+		s := statMap[f.Integration]
+		if s == nil {
+			s = &intgStat{name: f.Integration}
+			statMap[f.Integration] = s
+		}
+		switch f.Status {
+		case engine.StatusPass:
+			s.passed++
+		case engine.StatusFail:
+			s.failed++
+		}
+	}
+	if len(statMap) > 0 {
+		pdf.SetFont("Helvetica", "B", 10)
+		setTextHex(pdf, colorText)
+		pdf.SetXY(20, 82)
+		pdf.Cell(0, 6, "Coverage by Integration")
+		pdf.SetXY(20, 90)
+
+		// table header
+		setFillHex(pdf, colorBg)
+		setDrawHex(pdf, colorBorder)
+		pdf.Rect(20, 90, 170, 6, "FD")
+		pdf.SetFont("Helvetica", "B", 7)
+		setTextHex(pdf, colorMuted)
+		pdf.SetXY(22, 91); pdf.CellFormat(80, 4, "Integration", "", 0, "L", false, 0, "")
+		pdf.SetXY(102, 91); pdf.CellFormat(22, 4, "Passed", "", 0, "C", false, 0, "")
+		pdf.SetXY(124, 91); pdf.CellFormat(22, 4, "Failed", "", 0, "C", false, 0, "")
+		pdf.SetXY(146, 91); pdf.CellFormat(22, 4, "Score", "", 0, "C", false, 0, "")
+		rowY := 96.0
+		for _, s := range statMap {
+			total := s.passed + s.failed
+			score := 0
+			if total > 0 {
+				score = s.passed * 100 / total
+			}
+			scoreCol := colorPass
+			if score < 50 {
+				scoreCol = colorCrit
+			} else if score < 80 {
+				scoreCol = colorMedium
+			}
+			pdf.SetFont("Helvetica", "", 7)
+			setTextHex(pdf, colorText)
+			pdf.SetXY(22, rowY); pdf.CellFormat(80, 4, s.name, "", 0, "L", false, 0, "")
+			setTextHex(pdf, colorPass)
+			pdf.SetXY(102, rowY); pdf.CellFormat(22, 4, fmt.Sprintf("%d", s.passed), "", 0, "C", false, 0, "")
+			setTextHex(pdf, colorFail)
+			pdf.SetXY(124, rowY); pdf.CellFormat(22, 4, fmt.Sprintf("%d", s.failed), "", 0, "C", false, 0, "")
+			setTextHex(pdf, scoreCol)
+			pdf.SetFont("Helvetica", "B", 7)
+			pdf.SetXY(146, rowY); pdf.CellFormat(22, 4, fmt.Sprintf("%d%%", score), "", 0, "C", false, 0, "")
+			rowY += 5
+		}
+		pdf.SetXY(20, rowY+4)
+	}
+
 	// ── Findings ────────────────────────────────────────────────────
+	findingsY := pdf.GetY() + 4
 	pdf.SetFont("Helvetica", "B", 13)
 	setTextHex(pdf, colorText)
-	pdf.SetXY(20, 82)
+	pdf.SetXY(20, findingsY)
 	pdf.Cell(0, 8, "Findings")
-	pdf.SetXY(20, 90)
+	pdf.SetXY(20, findingsY+8)
 
 	currentIntegration := ""
 	for _, f := range result.Findings {
@@ -206,6 +292,7 @@ func WritePDF(result *engine.ScanResult, framework, path string) error {
 	}
 
 	if hasFixes {
+
 		pdf.AddPage()
 		pdf.SetFont("Helvetica", "B", 13)
 		setTextHex(pdf, colorText)
@@ -254,6 +341,61 @@ func WritePDF(result *engine.ScanResult, framework, path string) error {
 
 			pdf.SetXY(20, pdf.GetY()+4)
 			i++
+		}
+	}
+
+	// ── Controls index ──────────────────────────────────────────────
+	// Collect all unique control refs grouped by framework
+	type ctrlKey struct{ fw, id string }
+	ctrlSet := map[ctrlKey]bool{}
+	for _, f := range result.Findings {
+		for _, c := range f.Controls {
+			ctrlSet[ctrlKey{string(c.Framework), c.ID}] = true
+		}
+	}
+	if len(ctrlSet) > 0 {
+		pdf.AddPage()
+		pdf.SetXY(20, 20)
+		pdf.SetFont("Helvetica", "B", 13)
+		setTextHex(pdf, colorText)
+		pdf.Cell(0, 8, "Controls Index")
+		pdf.SetXY(20, 30)
+
+		// Group by framework
+		byFW := map[string][]string{}
+		for k := range ctrlSet {
+			byFW[k.fw] = append(byFW[k.fw], k.id)
+		}
+		for fw, ids := range byFW {
+			if pdf.GetY() > 260 {
+				pdf.AddPage(); pdf.SetXY(20, 20)
+			}
+			pdf.SetFont("Helvetica", "B", 9)
+			setTextHex(pdf, colorBrand)
+			pdf.SetXY(20, pdf.GetY())
+			pdf.Cell(0, 6, strings.ToUpper(fw))
+			pdf.SetXY(20, pdf.GetY()+6)
+
+			pdf.SetFont("Helvetica", "", 8)
+			setTextHex(pdf, colorMuted)
+			line := ""
+			for j, id := range ids {
+				if j > 0 {
+					line += "  ·  "
+				}
+				line += id
+				if len(line) > 90 {
+					pdf.SetXY(24, pdf.GetY())
+					pdf.Cell(0, 5, line)
+					pdf.SetXY(20, pdf.GetY()+5)
+					line = ""
+				}
+			}
+			if line != "" {
+				pdf.SetXY(24, pdf.GetY())
+				pdf.Cell(0, 5, line)
+				pdf.SetXY(20, pdf.GetY()+6)
+			}
 		}
 	}
 
