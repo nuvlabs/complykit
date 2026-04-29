@@ -89,6 +89,11 @@ func (c *Checker) Run() ([]engine.Finding, error) {
 	// P3 additions
 	findings = append(findings, c.checkAuditLogging()...)
 	findings = append(findings, c.checkFalco()...)
+	// Database security
+	findings = append(findings, c.checkDBPVCEncryption()...)
+	findings = append(findings, c.checkDBNoPublicService()...)
+	findings = append(findings, c.checkDBNotRoot()...)
+	findings = append(findings, c.checkDBSecretNotConfigMap()...)
 	return findings, nil
 }
 

@@ -68,10 +68,7 @@ func (c *Checker) Run() ([]engine.Finding, error) {
 	findings = append(findings, c.checkSignedCommits(repos)...)
 	// P2 additions
 	findings = append(findings, c.checkOIDCCloudAuth(repos)...)
-	findings = append(findings, c.checkVerifiedDomains()...)
-	findings = append(findings, c.checkIPAllowlist()...)
-	// P3 additions
-	findings = append(findings, c.checkSecretRotation(repos)...)
+	findings = append(findings, c.checkDBCredentialsInCode()...)
 	return findings, nil
 }
 

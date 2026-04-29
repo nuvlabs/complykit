@@ -148,6 +148,8 @@ func runScan(cmd *cobra.Command, args []string) error {
 				awschecks.NewP3Checker(cfg),
 				awschecks.NewISO27001Checker(cfg),
 				awschecks.NewPCIDSSChecker(cfg),
+				awschecks.NewEC2DBChecker(cfg),
+				awschecks.NewDBAccessChecker(cfg),
 			}
 			for _, checker := range awsCheckers {
 				dim.Printf("  Scanning %s...\n", checker.Integration())

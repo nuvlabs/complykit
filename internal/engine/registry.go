@@ -6,7 +6,7 @@ type CheckInfo struct {
 	Title       string       `json:"title"`
 	Severity    string       `json:"severity"`
 	Integration string       `json:"integration"`
-	Frameworks  []string     `json:"frameworks"`  // which frameworks this check belongs to
+	Frameworks  []string     `json:"frameworks"` // which frameworks this check belongs to
 	Controls    []ControlRef `json:"controls"`
 }
 
@@ -80,6 +80,70 @@ var Registry = []CheckInfo{
 	{ID: "aws_rds_not_public", Title: "RDS instances not publicly accessible", Severity: "critical", Integration: "AWS/RDS",
 		Frameworks: []string{"soc2", "cis", "iso27001", "pcidss"},
 		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, ISO27001("A.13.1.3"), PCIDSS("1.3.2")}},
+	{ID: "aws_rds_ssl_enforcement", Title: "RDS instances enforce SSL/TLS in transit", Severity: "high", Integration: "AWS/RDS",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.7"}, {FrameworkHIPAA, "164.312(e)(1)"}, ISO27001("A.10.1.1"), PCIDSS("4.2.1")}},
+	{ID: "aws_rds_deletion_protection", Title: "RDS instances have deletion protection enabled", Severity: "medium", Integration: "AWS/RDS",
+		Frameworks: []string{"soc2", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC9.1"}, ISO27001("A.12.3.1"), PCIDSS("12.3.4")}},
+	{ID: "aws_rds_backup", Title: "RDS automated backups retain ≥ 7 days", Severity: "high", Integration: "AWS/RDS",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC9.1"}, {FrameworkHIPAA, "164.310(d)(2)(iv)"}, ISO27001("A.12.3.1"), PCIDSS("12.3.4")}},
+	{ID: "aws_rds_iam_auth", Title: "RDS IAM database authentication enabled", Severity: "medium", Integration: "AWS/RDS",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, {FrameworkHIPAA, "164.312(a)(1)"}, ISO27001("A.9.2.3"), PCIDSS("8.2.1")}},
+	{ID: "aws_rds_multi_az", Title: "RDS instances have Multi-AZ enabled", Severity: "medium", Integration: "AWS/RDS",
+		Frameworks: []string{"soc2", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "A1.2"}, ISO27001("A.17.2.1"), PCIDSS("12.3.4")}},
+	{ID: "aws_rds_minor_upgrade", Title: "RDS auto minor version upgrade enabled", Severity: "low", Integration: "AWS/RDS",
+		Frameworks: []string{"cis", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkCIS, "2.3.2"}, ISO27001("A.12.6.1"), PCIDSS("6.3.3")}},
+
+	// ── AWS EC2 Database ──────────────────────────────────────────────────────
+	{ID: "aws_ec2_db_ebs_encrypted", Title: "EC2 database instance EBS volumes are encrypted", Severity: "high", Integration: "AWS/EC2-Database",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.7"}, {FrameworkHIPAA, "164.312(a)(2)(iv)"}, ISO27001("A.10.1.1"), PCIDSS("3.5.1")}},
+	{ID: "aws_ec2_db_no_public_ip", Title: "EC2 database instances have no public IP address", Severity: "critical", Integration: "AWS/EC2-Database",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, {FrameworkHIPAA, "164.312(a)(1)"}, ISO27001("A.13.1.3"), PCIDSS("1.3.2")}},
+	{ID: "aws_ec2_db_sg_exposure", Title: "EC2 database security groups do not expose DB ports to internet", Severity: "critical", Integration: "AWS/EC2-Database",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.6"}, {FrameworkHIPAA, "164.312(a)(1)"}, ISO27001("A.13.1.1"), PCIDSS("1.2.1")}},
+
+	// ── Kubernetes Database ───────────────────────────────────────────────────
+	{ID: "k8s_db_pvc_encrypted", Title: "Database pod PVCs use encrypted StorageClass", Severity: "high", Integration: "Kubernetes",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.7"}, {FrameworkHIPAA, "164.312(a)(2)(iv)"}, ISO27001("A.10.1.1"), PCIDSS("3.5.1")}},
+	{ID: "k8s_db_no_public_service", Title: "No database ports exposed via LoadBalancer or NodePort", Severity: "critical", Integration: "Kubernetes",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, {FrameworkHIPAA, "164.312(a)(1)"}, ISO27001("A.13.1.3"), PCIDSS("1.3.2")}},
+
+	// ── Terraform Database ────────────────────────────────────────────────────
+	{ID: "tf_rds_ssl_mode", Title: "RDS parameter group enforces SSL/TLS", Severity: "high", Integration: "Terraform",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.7"}, {FrameworkHIPAA, "164.312(e)(1)"}, ISO27001("A.10.1.1"), PCIDSS("4.2.1")}},
+	{ID: "tf_db_hardcoded_password", Title: "No hardcoded passwords in Terraform RDS resources", Severity: "critical", Integration: "Terraform",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, {FrameworkHIPAA, "164.312(a)(2)(iv)"}, ISO27001("A.9.4.3"), PCIDSS("8.3.1")}},
+
+	// ── AWS RDS Access ────────────────────────────────────────────────────────
+	{ID: "aws_rds_overprivileged_iam", Title: "No IAM principals with broad RDS access", Severity: "high", Integration: "AWS/DB-Access",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.3"}, {FrameworkHIPAA, "164.312(a)(1)"}, ISO27001("A.9.2.3"), PCIDSS("7.2.1")}},
+	{ID: "aws_rds_no_master_user_exposed", Title: "RDS instances do not use default master usernames", Severity: "medium", Integration: "AWS/RDS",
+		Frameworks: []string{"soc2", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, ISO27001("A.9.2.3"), PCIDSS("8.2.1")}},
+	{ID: "aws_secrets_manager_rotation", Title: "DB secrets in Secrets Manager have rotation enabled", Severity: "high", Integration: "AWS/DB-Access",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, {FrameworkHIPAA, "164.312(a)(2)(iv)"}, ISO27001("A.9.4.3"), PCIDSS("8.3.9")}},
+
+	// ── Kubernetes DB Access ──────────────────────────────────────────────────
+	{ID: "k8s_db_not_root", Title: "Database containers do not run as root", Severity: "high", Integration: "Kubernetes",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, {FrameworkHIPAA, "164.312(a)(1)"}, ISO27001("A.9.2.3"), PCIDSS("7.2.1")}},
+	{ID: "k8s_db_secret_not_configmap", Title: "No database credentials stored in ConfigMaps", Severity: "critical", Integration: "Kubernetes",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, {FrameworkHIPAA, "164.312(a)(2)(iv)"}, ISO27001("A.9.4.3"), PCIDSS("8.3.1")}},
 
 	// ── AWS GuardDuty ─────────────────────────────────────────────────────────
 	{ID: "aws_guardduty_enabled", Title: "GuardDuty threat detection enabled", Severity: "high", Integration: "AWS/GuardDuty",
@@ -130,6 +194,9 @@ var Registry = []CheckInfo{
 	{ID: "github_secret_scanning", Title: "Secret scanning enabled", Severity: "critical", Integration: "GitHub",
 		Frameworks: []string{"soc2", "iso27001", "pcidss"},
 		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, ISO27001("A.9.4.1"), PCIDSS("6.3.2")}},
+	{ID: "github_db_credentials", Title: "No database credentials committed to source code", Severity: "critical", Integration: "GitHub",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, {FrameworkHIPAA, "164.312(a)(2)(iv)"}, ISO27001("A.9.4.3"), PCIDSS("8.3.1")}},
 
 	// ── GCP ───────────────────────────────────────────────────────────────────
 	{ID: "gcp_logging_enabled", Title: "Cloud Audit Logging enabled", Severity: "high", Integration: "GCP",
@@ -166,4 +233,20 @@ var Registry = []CheckInfo{
 	{ID: "tf_no_hardcoded_secrets", Title: "No hardcoded secrets in Terraform", Severity: "critical", Integration: "Terraform",
 		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
 		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, ISO27001("A.9.4.3"), PCIDSS("8.2.1")}},
-}
+
+	// ── Database (comply db scan) ─────────────────────────────────────────────
+	{ID: "db_pii_column_detection", Title: "No PII-named columns without documented controls", Severity: "high", Integration: "Database",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, {FrameworkHIPAA, "164.312(a)(1)"}, ISO27001("A.18.1.4"), PCIDSS("3.3.1")}},
+	{ID: "db_pii_data_sampling", Title: "No unencrypted PII in sampled database rows", Severity: "critical", Integration: "Database",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, {FrameworkHIPAA, "164.312(e)(2)(ii)"}, ISO27001("A.18.1.4"), PCIDSS("3.3.1")}},
+	{ID: "db_tls_connection_test", Title: "Database server enforces TLS — no plaintext connections", Severity: "critical", Integration: "Database",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.7"}, {FrameworkHIPAA, "164.312(e)(1)"}, ISO27001("A.10.1.1"), PCIDSS("4.2.1")}},
+	{ID: "db_rls_on_pii_tables", Title: "Row Level Security enabled on PII tables", Severity: "high", Integration: "Database",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.3"}, {FrameworkHIPAA, "164.312(a)(1)"}, ISO27001("A.9.1.2"), PCIDSS("7.2.2")}},
+	{ID: "db_schema_audit_table", Title: "Audit log table exists in database schema", Severity: "medium", Integration: "Database",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC7.2"}, {FrameworkHIPAA, "164.312(b)"}, ISO27001("A.12.4.1"), PCIDSS("10.2.1")}}}

@@ -56,10 +56,21 @@ var ControlMap = map[string][]ControlRef{
 	// ── AWS RDS ───────────────────────────────────────────────────────────────
 	"aws_rds_encryption":            {ISO27001("A.10.1.1"), PCIDSS("3.5.1")},
 	"aws_rds_not_public":            {ISO27001("A.13.1.3"), PCIDSS("1.3.2")},
+	"aws_rds_ssl_enforcement":       {ISO27001("A.10.1.1"), PCIDSS("4.2.1")},
 	"aws_rds_backup":                {ISO27001("A.12.3.1"), PCIDSS("12.3.4")},
 	"aws_rds_multi_az":              {ISO27001("A.17.2.1"), PCIDSS("12.3.4")},
 	"aws_rds_deletion_protection":   {ISO27001("A.12.3.1"), PCIDSS("12.3.4")},
 	"aws_rds_minor_upgrade":         {ISO27001("A.12.6.1"), PCIDSS("6.3.3")},
+	"aws_rds_iam_auth":              {ISO27001("A.9.2.3"),  PCIDSS("8.2.1")},
+
+	// ── AWS EC2 Database ──────────────────────────────────────────────────────
+	"aws_ec2_db_ebs_encrypted":      {ISO27001("A.10.1.1"), PCIDSS("3.5.1")},
+	"aws_ec2_db_no_public_ip":       {ISO27001("A.13.1.3"), PCIDSS("1.3.2")},
+	"aws_ec2_db_sg_exposure":        {ISO27001("A.13.1.1"), PCIDSS("1.2.1")},
+
+	// ── AWS DB Access ─────────────────────────────────────────────────────────
+	"aws_rds_overprivileged_iam":    {ISO27001("A.9.2.3"),  PCIDSS("7.2.1")},
+	"aws_rds_no_master_user_exposed":{ISO27001("A.9.2.3"),  PCIDSS("8.2.1")},
 
 	// ── AWS ECR ───────────────────────────────────────────────────────────────
 	"aws_ecr_scan_on_push":          {ISO27001("A.12.6.1"), PCIDSS("6.3.2")},
@@ -103,6 +114,7 @@ var ControlMap = map[string][]ControlRef{
 	"github_code_scanning":          {ISO27001("A.12.6.1"), PCIDSS("6.3.2")},
 	"github_private_repos":          {ISO27001("A.13.1.3"), PCIDSS("1.3.2")},
 	"github_signed_commits":         {ISO27001("A.12.4.3"), PCIDSS("10.5.2")},
+	"github_db_credentials":         {ISO27001("A.9.4.3"), PCIDSS("8.3.1")},
 
 	// ── Terraform ─────────────────────────────────────────────────────────────
 	"tf_s3_no_public_acl":           {ISO27001("A.13.1.3"), PCIDSS("1.3.2")},
@@ -122,9 +134,27 @@ var ControlMap = map[string][]ControlRef{
 	// ── Kubernetes ────────────────────────────────────────────────────────────
 	"k8s_no_privileged_containers":  {ISO27001("A.13.1.3"), PCIDSS("6.3.1")},
 	"k8s_network_policies":          {ISO27001("A.13.1.1"), PCIDSS("1.2.7")},
-	"k8s_rbac_enabled":              {ISO27001("A.9.2.3"), PCIDSS("7.2.1")},
+	"k8s_rbac_enabled":              {ISO27001("A.9.2.3"),  PCIDSS("7.2.1")},
 	"k8s_no_host_network":           {ISO27001("A.13.1.3"), PCIDSS("1.3.2")},
 	"k8s_image_policy":              {ISO27001("A.12.5.1"), PCIDSS("6.3.2")},
+	"k8s_db_pvc_encrypted":          {ISO27001("A.10.1.1"), PCIDSS("3.5.1")},
+	"k8s_db_no_public_service":      {ISO27001("A.13.1.3"), PCIDSS("1.3.2")},
+	"k8s_db_not_root":               {ISO27001("A.9.2.3"),  PCIDSS("7.2.1")},
+	"k8s_db_secret_not_configmap":   {ISO27001("A.9.4.3"),  PCIDSS("8.3.1")},
+
+	// ── Terraform Database ────────────────────────────────────────────────────
+	"tf_rds_ssl_mode":               {ISO27001("A.10.1.1"), PCIDSS("4.2.1")},
+	"tf_db_hardcoded_password":      {ISO27001("A.9.4.3"), PCIDSS("8.3.1")},
+
+	// ── AWS Secrets Manager ───────────────────────────────────────────────────
+	"aws_secrets_manager_rotation":  {ISO27001("A.9.4.3"), PCIDSS("8.3.9")},
+
+	// ── Database (comply db scan) ─────────────────────────────────────────────
+	"db_pii_column_detection": {ISO27001("A.18.1.4"), PCIDSS("3.3.1")},
+	"db_pii_data_sampling":    {ISO27001("A.18.1.4"), PCIDSS("3.3.1")},
+	"db_tls_connection_test":  {ISO27001("A.10.1.1"), PCIDSS("4.2.1")},
+	"db_rls_on_pii_tables":    {ISO27001("A.9.1.2"),  PCIDSS("7.2.2")},
+	"db_schema_audit_table":   {ISO27001("A.12.4.1"), PCIDSS("10.2.1")},
 }
 
 // EnrichWithFrameworks adds ISO 27001 and PCI DSS controls to a finding

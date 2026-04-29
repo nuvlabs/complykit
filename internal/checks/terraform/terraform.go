@@ -53,6 +53,7 @@ func (c *Checker) Run() ([]engine.Finding, error) {
 	checkRDSPublic(content, add)
 	checkRDSEncryption(content, add)
 	checkRDSDeletionProtection(content, add)
+	checkRDSSSLMode(content, add)
 
 	// ── EC2 ─────────────────────────────────────────────────────────────────
 	checkIMDSv1(content, add)
@@ -62,6 +63,7 @@ func (c *Checker) Run() ([]engine.Finding, error) {
 
 	// ── Secrets ─────────────────────────────────────────────────────────────
 	checkHardcodedSecrets(content, add)
+	checkRDSHardcodedPassword(content, add)
 
 	return findings, nil
 }
@@ -107,6 +109,14 @@ func hasMatch(content, pattern string) bool {
 
 func soc2(id string) engine.ControlRef {
 	return engine.ControlRef{Framework: "soc2", ID: id}
+}
+
+func pci(id string) engine.ControlRef {
+	return engine.ControlRef{Framework: "pci", ID: id}
+}
+
+func iso(id string) engine.ControlRef {
+	return engine.ControlRef{Framework: "iso", ID: id}
 }
 
 func finding(id, title string, status engine.Status, sev engine.Severity, remediation string, controls ...engine.ControlRef) engine.Finding {
@@ -271,6 +281,23 @@ func checkRDSEncryption(content string, add func(engine.Finding)) {
 		soc2("CC6.1"), engine.ControlRef{Framework: "hipaa", ID: "164.312(a)(2)(iv)"}))
 }
 
+func checkRDSSSLMode(content string, add func(engine.Finding)) {
+	hasRDS := hasResource(content, "aws_db_instance") || hasResource(content, "aws_rds_cluster")
+	if !hasRDS {
+		return
+	}
+	hasCustomPG := hasResource(content, "aws_db_parameter_group")
+	hasSSLParam := hasMatch(content, `rds\.force_ssl`) || hasMatch(content, `require_secure_transport`)
+	if !hasCustomPG || !hasSSLParam {
+		add(finding("tf_rds_ssl_mode", "RDS parameter group enforces SSL/TLS", engine.StatusFail, engine.SeverityHigh,
+			"Create an aws_db_parameter_group with SSL enforcement and associate it with your DB instance:\n  PostgreSQL: rds.force_ssl = 1\n  MySQL/MariaDB: require_secure_transport = ON",
+			soc2("CC6.7"), engine.ControlRef{Framework: "hipaa", ID: "164.312(e)(1)"}))
+		return
+	}
+	add(finding("tf_rds_ssl_mode", "RDS parameter group enforces SSL/TLS", engine.StatusPass, engine.SeverityHigh, "",
+		soc2("CC6.7"), engine.ControlRef{Framework: "hipaa", ID: "164.312(e)(1)"}))
+}
+
 func checkRDSDeletionProtection(content string, add func(engine.Finding)) {
 	if !hasResource(content, "aws_db_instance") {
 		return
@@ -318,6 +345,29 @@ func checkNoBackend(content string, add func(engine.Finding)) {
 }
 
 // ── Secrets ──────────────────────────────────────────────────────────────────
+
+func checkRDSHardcodedPassword(content string, add func(engine.Finding)) {
+	hasRDS := hasResource(content, "aws_db_instance") || hasResource(content, "aws_rds_cluster")
+	if !hasRDS {
+		return
+	}
+	// Match password = "literal" that is not a variable reference (no ${ or var.)
+	hardcoded := hasMatch(content, `password\s*=\s*"[^"$][^"]{2,}"`) &&
+		!hasMatch(content, `password\s*=\s*".*\$\{`) &&
+		!hasMatch(content, `password\s*=\s*var\.`)
+	if hardcoded {
+		add(finding("tf_db_hardcoded_password", "No hardcoded passwords in RDS resources",
+			engine.StatusFail, engine.SeverityCritical,
+			"Replace the hardcoded password with a Secrets Manager or SSM reference:\n"+
+				"  password = aws_secretsmanager_secret_version.db.secret_string\n"+
+				"  Or use var.db_password marked sensitive = true",
+			soc2("CC6.1"), engine.ControlRef{Framework: "hipaa", ID: "164.312(a)(2)(iv)"}))
+		return
+	}
+	add(finding("tf_db_hardcoded_password", "No hardcoded passwords in RDS resources",
+		engine.StatusPass, engine.SeverityCritical, "",
+		soc2("CC6.1")))
+}
 
 func checkHardcodedSecrets(content string, add func(engine.Finding)) {
 	secretPatterns := []*regexp.Regexp{
