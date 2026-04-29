@@ -264,6 +264,12 @@ var Registry = []CheckInfo{
 	{ID: "db_schema_audit_table", Title: "Audit log table exists in database schema", Severity: "medium", Integration: "Database",
 		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
 		Controls:   []ControlRef{{FrameworkSOC2, "CC7.2"}, {FrameworkHIPAA, "164.312(b)"}, ISO27001("A.12.4.1"), PCIDSS("10.2.1")}},
+	{ID: "db_default_accounts", Title: "No default database accounts active (postgres, root, sa, mysql…)", Severity: "critical", Integration: "Database",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, {FrameworkHIPAA, "164.312(a)(1)"}, ISO27001("A.9.2.3"), PCIDSS("8.2.1")}},
+	{ID: "db_unused_accounts", Title: "No database accounts inactive for 90+ days", Severity: "medium", Integration: "Database",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC6.3"}, {FrameworkHIPAA, "164.312(a)(1)"}, ISO27001("A.9.2.5"), PCIDSS("8.2.6")}},
 
 	// ── AWS Macie ─────────────────────────────────────────────────────────────
 	{ID: "aws_macie_enabled", Title: "Amazon Macie is enabled and actively scanning S3 for PII", Severity: "high", Integration: "AWS/Macie",

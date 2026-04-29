@@ -56,6 +56,8 @@ func (s *Scanner) Run() ([]engine.Finding, error) {
 	findings = append(findings, s.checkTLSEnforcement()...)
 	findings = append(findings, s.checkRLSOnPIITables()...)
 	findings = append(findings, s.checkAuditTable()...)
+	findings = append(findings, s.checkDefaultAccounts()...)
+	findings = append(findings, s.checkUnusedAccounts()...)
 	return findings, nil
 }
 
