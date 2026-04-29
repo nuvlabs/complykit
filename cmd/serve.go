@@ -372,25 +372,36 @@ func runServe(cmd *cobra.Command, args []string) error {
 			http.Error(w, err.Error(), 500)
 			return
 		}
+		type intgScore struct {
+			Score  int `json:"score"`
+			Passed int `json:"passed"`
+			Failed int `json:"failed"`
+		}
 		type summary struct {
-			ID          string `json:"id"`
-			CollectedAt string `json:"collected_at"`
-			Framework   string `json:"framework"`
-			Score       int    `json:"score"`
-			Passed      int    `json:"passed"`
-			Failed      int    `json:"failed"`
-			Skipped     int    `json:"skipped"`
+			ID                string                `json:"id"`
+			CollectedAt       string                `json:"collected_at"`
+			Framework         string                `json:"framework"`
+			Score             int                   `json:"score"`
+			Passed            int                   `json:"passed"`
+			Failed            int                   `json:"failed"`
+			Skipped           int                   `json:"skipped"`
+			IntegrationScores map[string]intgScore  `json:"integration_scores,omitempty"`
 		}
 		out := make([]summary, 0, len(records))
 		for _, rec := range records {
+			is := make(map[string]intgScore, len(rec.IntegrationScores))
+			for k, v := range rec.IntegrationScores {
+				is[k] = intgScore{Score: v.Score, Passed: v.Passed, Failed: v.Failed}
+			}
 			out = append(out, summary{
-				ID:          rec.ID,
-				CollectedAt: rec.CollectedAt.Format("2006-01-02T15:04:05Z"),
-				Framework:   rec.Framework,
-				Score:       rec.Score,
-				Passed:      rec.Passed,
-				Failed:      rec.Failed,
-				Skipped:     rec.Skipped,
+				ID:                rec.ID,
+				CollectedAt:       rec.CollectedAt.Format("2006-01-02T15:04:05Z"),
+				Framework:         rec.Framework,
+				Score:             rec.Score,
+				Passed:            rec.Passed,
+				Failed:            rec.Failed,
+				Skipped:           rec.Skipped,
+				IntegrationScores: is,
 			})
 		}
 		json.NewEncoder(w).Encode(out)
