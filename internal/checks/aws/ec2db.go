@@ -6,17 +6,22 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/service/cloudwatchlogs"
 	"github.com/aws/aws-sdk-go-v2/service/ec2"
 	ec2types "github.com/aws/aws-sdk-go-v2/service/ec2/types"
 	"github.com/complykit/complykit/internal/engine"
 )
 
 type EC2DBChecker struct {
-	client *ec2.Client
+	client  *ec2.Client
+	cwlogs  *cloudwatchlogs.Client
 }
 
 func NewEC2DBChecker(cfg aws.Config) *EC2DBChecker {
-	return &EC2DBChecker{client: ec2.NewFromConfig(cfg)}
+	return &EC2DBChecker{
+		client: ec2.NewFromConfig(cfg),
+		cwlogs: cloudwatchlogs.NewFromConfig(cfg),
+	}
 }
 
 func (c *EC2DBChecker) Integration() string { return "AWS/EC2-Database" }
@@ -26,6 +31,7 @@ func (c *EC2DBChecker) Run() ([]engine.Finding, error) {
 	findings = append(findings, c.checkDBEBSEncryption()...)
 	findings = append(findings, c.checkDBNoPublicIP()...)
 	findings = append(findings, c.checkDBSGExposure()...)
+	findings = append(findings, c.checkCloudWatchLogs()...)
 	return findings, nil
 }
 
@@ -232,5 +238,80 @@ func (c *EC2DBChecker) checkDBSGExposure() []engine.Finding {
 		"AWS/EC2-Database", fmt.Sprintf("%d rules", len(exposed)), SeverityCritical,
 		"Restrict inbound rules on DB security groups:\n  Remove rules allowing ports 5432/3306/1433/27017/6379 from 0.0.0.0/0\n  Replace with the specific security group ID of your application servers.",
 		soc2("CC6.6"), hipaa("164.312(a)(1)"),
+	)}
+}
+
+// checkCloudWatchLogs verifies that EC2-hosted DB instances have a matching
+// CloudWatch Logs log group (by instance ID or Name tag).
+func (c *EC2DBChecker) checkCloudWatchLogs() []engine.Finding {
+	instances, err := c.listDBInstances()
+	if err != nil {
+		return []engine.Finding{skip("aws_ec2_db_cloudwatch_logs", "EC2 DB CloudWatch Logs", err.Error())}
+	}
+	if len(instances) == 0 {
+		return nil
+	}
+
+	// Collect all log group names once — cheaper than one API call per instance.
+	logGroups := map[string]bool{}
+	pagInput := &cloudwatchlogs.DescribeLogGroupsInput{}
+	for {
+		out, lerr := c.cwlogs.DescribeLogGroups(context.Background(), pagInput)
+		if lerr != nil {
+			return []engine.Finding{skip("aws_ec2_db_cloudwatch_logs", "EC2 DB CloudWatch Logs", lerr.Error())}
+		}
+		for _, lg := range out.LogGroups {
+			logGroups[aws.ToString(lg.LogGroupName)] = true
+		}
+		if out.NextToken == nil {
+			break
+		}
+		pagInput.NextToken = out.NextToken
+	}
+
+	var noLogs []string
+	for _, inst := range instances {
+		id := aws.ToString(inst.InstanceId)
+		nameTag := ""
+		for _, t := range inst.Tags {
+			if aws.ToString(t.Key) == "Name" {
+				nameTag = aws.ToString(t.Value)
+			}
+		}
+
+		// Match if any log group contains the instance ID or Name tag.
+		found := false
+		for lg := range logGroups {
+			if strings.Contains(lg, id) || (nameTag != "" && strings.Contains(lg, nameTag)) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			label := id
+			if nameTag != "" {
+				label = nameTag + " (" + id + ")"
+			}
+			noLogs = append(noLogs, label)
+		}
+	}
+
+	if len(noLogs) == 0 {
+		return []engine.Finding{pass("aws_ec2_db_cloudwatch_logs",
+			"All EC2 DB instances have CloudWatch log groups",
+			"AWS/EC2-Database", "instances",
+			soc2("CC7.2"), hipaa("164.312(b)"),
+		)}
+	}
+	return []engine.Finding{fail(
+		"aws_ec2_db_cloudwatch_logs",
+		fmt.Sprintf("%d EC2 DB instance(s) without CloudWatch log groups: %v", len(noLogs), truncateList(noLogs, 5)),
+		"AWS/EC2-Database", fmt.Sprintf("%d instances", len(noLogs)), SeverityHigh,
+		"Install the CloudWatch Logs agent and configure log groups:\n"+
+			"  sudo yum install amazon-cloudwatch-agent\n"+
+			"  Configure /opt/aws/amazon-cloudwatch-agent/bin/config.json to stream\n"+
+			"  database logs (e.g. /var/log/postgresql/*.log) to a log group named\n"+
+			"  after the instance ID or Name tag.",
+		soc2("CC7.2"), hipaa("164.312(b)"),
 	)}
 }

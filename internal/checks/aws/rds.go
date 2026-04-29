@@ -33,6 +33,7 @@ func (c *RDSChecker) Run() ([]engine.Finding, error) {
 	findings = append(findings, c.checkMultiAZ()...)
 	findings = append(findings, c.checkMinorVersionUpgrade()...)
 	findings = append(findings, c.checkMasterUsername()...)
+	findings = append(findings, c.checkAuditLogging()...)
 	return findings, nil
 }
 
@@ -405,5 +406,80 @@ func (c *RDSChecker) checkMinorVersionUpgrade() []engine.Finding {
 		"AWS/RDS", fmt.Sprintf("%d instances", len(noUpgrade)), SeverityLow,
 		"Enable auto minor version upgrade:\n  aws rds modify-db-instance --db-instance-identifier <id> --auto-minor-version-upgrade",
 		cis("2.3.2"),
+	)}
+}
+
+// checkAuditLogging verifies that RDS instances export audit/error/general logs to CloudWatch Logs.
+func (c *RDSChecker) checkAuditLogging() []engine.Finding {
+	// Required log types per engine — any of these must be present.
+	wantedLogs := map[string][]string{
+		"mysql":     {"audit", "error", "general"},
+		"mariadb":   {"audit", "error"},
+		"postgres":  {"postgresql"},
+		"aurora":    {"audit"},
+		"oracle":    {"audit"},
+		"sqlserver": {"error"},
+	}
+	defaultWanted := []string{"audit", "error"}
+
+	paginator := rds.NewDescribeDBInstancesPaginator(c.client, &rds.DescribeDBInstancesInput{})
+	var noLogs []string
+	hasInstances := false
+
+	for paginator.HasMorePages() {
+		page, err := paginator.NextPage(context.Background())
+		if err != nil {
+			return []engine.Finding{skip("aws_rds_audit_logging", "RDS Audit Logging", err.Error())}
+		}
+		for _, db := range page.DBInstances {
+			hasInstances = true
+			id := aws.ToString(db.DBInstanceIdentifier)
+			engine := strings.ToLower(aws.ToString(db.Engine))
+
+			wanted := defaultWanted
+			for prefix, logs := range wantedLogs {
+				if strings.HasPrefix(engine, prefix) {
+					wanted = logs
+					break
+				}
+			}
+
+			exported := map[string]bool{}
+			for _, lg := range db.EnabledCloudwatchLogsExports {
+				exported[strings.ToLower(lg)] = true
+			}
+
+			hasAny := false
+			for _, w := range wanted {
+				if exported[w] {
+					hasAny = true
+					break
+				}
+			}
+			if !hasAny {
+				noLogs = append(noLogs, id)
+			}
+		}
+	}
+
+	if !hasInstances {
+		return nil
+	}
+	if len(noLogs) == 0 {
+		return []engine.Finding{pass("aws_rds_audit_logging",
+			"All RDS instances export audit/error logs to CloudWatch Logs",
+			"AWS/RDS", "instances",
+			soc2("CC7.2"), hipaa("164.312(b)"), cis("2.3.4"),
+		)}
+	}
+	return []engine.Finding{fail(
+		"aws_rds_audit_logging",
+		fmt.Sprintf("%d RDS instance(s) not exporting audit logs to CloudWatch Logs: %v", len(noLogs), truncateList(noLogs, 5)),
+		"AWS/RDS", fmt.Sprintf("%d instances", len(noLogs)), SeverityHigh,
+		"Enable CloudWatch log exports:\n"+
+			"  aws rds modify-db-instance --db-instance-identifier <id>\\\n"+
+			"    --cloudwatch-logs-export-configuration '{\"EnableLogTypes\":[\"audit\",\"error\",\"general\"]}'\n"+
+			"For PostgreSQL use: \"postgresql\" instead of \"audit\".",
+		soc2("CC7.2"), hipaa("164.312(b)"), cis("2.3.4"),
 	)}
 }

@@ -109,6 +109,17 @@ var Registry = []CheckInfo{
 	{ID: "aws_ec2_db_sg_exposure", Title: "EC2 database security groups do not expose DB ports to internet", Severity: "critical", Integration: "AWS/EC2-Database",
 		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
 		Controls:   []ControlRef{{FrameworkSOC2, "CC6.6"}, {FrameworkHIPAA, "164.312(a)(1)"}, ISO27001("A.13.1.1"), PCIDSS("1.2.1")}},
+	{ID: "aws_ec2_db_cloudwatch_logs", Title: "EC2 database instances have CloudWatch log groups configured", Severity: "high", Integration: "AWS/EC2-Database",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC7.2"}, {FrameworkHIPAA, "164.312(b)"}, ISO27001("A.12.4.1"), PCIDSS("10.2.1")}},
+
+	// ── AWS RDS Audit ─────────────────────────────────────────────────────────
+	{ID: "aws_rds_audit_logging", Title: "RDS instances export audit/error logs to CloudWatch Logs", Severity: "high", Integration: "AWS/RDS",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC7.2"}, {FrameworkHIPAA, "164.312(b)"}, ISO27001("A.12.4.1"), PCIDSS("10.2.1")}},
+	{ID: "aws_cloudtrail_rds_events", Title: "CloudTrail records RDS data plane events", Severity: "medium", Integration: "AWS/CloudTrail",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC7.2"}, {FrameworkHIPAA, "164.312(b)"}, ISO27001("A.12.4.1"), PCIDSS("10.2.1")}},
 
 	// ── Kubernetes Database ───────────────────────────────────────────────────
 	{ID: "k8s_db_pvc_encrypted", Title: "Database pod PVCs use encrypted StorageClass", Severity: "high", Integration: "Kubernetes",
@@ -117,6 +128,9 @@ var Registry = []CheckInfo{
 	{ID: "k8s_db_no_public_service", Title: "No database ports exposed via LoadBalancer or NodePort", Severity: "critical", Integration: "Kubernetes",
 		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
 		Controls:   []ControlRef{{FrameworkSOC2, "CC6.1"}, {FrameworkHIPAA, "164.312(a)(1)"}, ISO27001("A.13.1.3"), PCIDSS("1.3.2")}},
+	{ID: "k8s_db_audit_logging", Title: "Kubernetes API server audit policy or runtime security agent present", Severity: "high", Integration: "Kubernetes",
+		Frameworks: []string{"soc2", "hipaa", "iso27001", "pcidss"},
+		Controls:   []ControlRef{{FrameworkSOC2, "CC7.2"}, {FrameworkHIPAA, "164.312(b)"}, ISO27001("A.12.4.1"), PCIDSS("10.2.1")}},
 
 	// ── Terraform Database ────────────────────────────────────────────────────
 	{ID: "tf_rds_ssl_mode", Title: "RDS parameter group enforces SSL/TLS", Severity: "high", Integration: "Terraform",

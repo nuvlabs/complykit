@@ -3,6 +3,7 @@ package aws
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/cloudtrail"
@@ -20,7 +21,58 @@ func NewCloudTrailChecker(cfg aws.Config) *CloudTrailChecker {
 func (c *CloudTrailChecker) Integration() string { return "AWS/CloudTrail" }
 
 func (c *CloudTrailChecker) Run() ([]engine.Finding, error) {
-	return c.checkTrails(), nil
+	var findings []engine.Finding
+	findings = append(findings, c.checkTrails()...)
+	findings = append(findings, c.checkRDSDataEvents()...)
+	return findings, nil
+}
+
+// checkRDSDataEvents verifies that at least one CloudTrail trail records RDS data events.
+func (c *CloudTrailChecker) checkRDSDataEvents() []engine.Finding {
+	out, err := c.client.DescribeTrails(context.Background(), &cloudtrail.DescribeTrailsInput{
+		IncludeShadowTrails: aws.Bool(false),
+	})
+	if err != nil {
+		return []engine.Finding{skip("aws_cloudtrail_rds_events", "CloudTrail RDS Data Events", err.Error())}
+	}
+
+	for _, trail := range out.TrailList {
+		selOut, serr := c.client.GetEventSelectors(context.Background(), &cloudtrail.GetEventSelectorsInput{
+			TrailName: trail.TrailARN,
+		})
+		if serr != nil {
+			continue
+		}
+		// Advanced event selectors
+		for _, sel := range selOut.AdvancedEventSelectors {
+			for _, f := range sel.FieldSelectors {
+				if aws.ToString(f.Field) == "resources.type" {
+					for _, v := range f.Equals {
+						if strings.Contains(strings.ToLower(v), "rds") {
+							return []engine.Finding{pass("aws_cloudtrail_rds_events",
+								"CloudTrail records RDS data events",
+								"AWS/CloudTrail", "trails",
+								soc2("CC7.2"), hipaa("164.312(b)"),
+							)}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return []engine.Finding{fail(
+		"aws_cloudtrail_rds_events",
+		"No CloudTrail trail records RDS data events",
+		"AWS/CloudTrail", "account", SeverityMedium,
+		"Enable RDS data events on a trail:\n"+
+			"  aws cloudtrail put-event-selectors --trail-name <trail> \\\n"+
+			"    --advanced-event-selectors '[{\"Name\":\"RDS\",\"FieldSelectors\":["+
+			"{\"Field\":\"eventCategory\",\"Equals\":[\"Data\"]},"+
+			"{\"Field\":\"resources.type\",\"Equals\":[\"AWS::RDS::DBInstance\"]}"+
+			"]}]'",
+		soc2("CC7.2"), hipaa("164.312(b)"),
+	)}
 }
 
 func (c *CloudTrailChecker) checkTrails() []engine.Finding {

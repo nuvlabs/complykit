@@ -349,6 +349,57 @@ func (c *Checker) checkDBSecretNotConfigMap() []engine.Finding {
 
 // checkDBNoPublicService verifies that no Kubernetes Service exposes database ports
 // via LoadBalancer or NodePort.
+// checkDBAuditLogging checks for the presence of a kube-apiserver audit policy
+// by inspecting the kube-apiserver pod's command-line arguments in kube-system,
+// and for Falco or a similar runtime security DaemonSet as a fallback.
+func (c *Checker) checkDBAuditLogging() []engine.Finding {
+	// Check 1: kube-apiserver pod has --audit-policy-file flag
+	pods, err := c.client.CoreV1().Pods("kube-system").List(context.Background(), metav1.ListOptions{
+		LabelSelector: "component=kube-apiserver",
+	})
+	if err == nil {
+		for _, pod := range pods.Items {
+			for _, container := range pod.Spec.Containers {
+				for _, arg := range container.Args {
+					if strings.HasPrefix(arg, "--audit-policy-file") {
+						return []engine.Finding{pass("k8s_db_audit_logging",
+							"Kubernetes API server has audit policy configured",
+							soc2("CC7.2"), hipaa("164.312(b)"),
+						)}
+					}
+				}
+			}
+		}
+	}
+
+	// Check 2: Falco DaemonSet present as runtime audit alternative
+	ds, err2 := c.client.AppsV1().DaemonSets("").List(context.Background(), metav1.ListOptions{})
+	if err2 == nil {
+		for _, d := range ds.Items {
+			name := strings.ToLower(d.Name)
+			if strings.Contains(name, "falco") || strings.Contains(name, "sysdig") ||
+				strings.Contains(name, "tetragon") {
+				return []engine.Finding{pass("k8s_db_audit_logging",
+					fmt.Sprintf("Runtime security agent found (%s) — provides DB audit coverage", d.Name),
+					soc2("CC7.2"), hipaa("164.312(b)"),
+				)}
+			}
+		}
+	}
+
+	return []engine.Finding{fail(
+		"k8s_db_audit_logging",
+		"No Kubernetes audit policy or runtime security agent detected",
+		engine.SeverityHigh,
+		"Enable API server audit logging by adding to kube-apiserver:\n"+
+			"  --audit-policy-file=/etc/kubernetes/audit-policy.yaml\n"+
+			"  --audit-log-path=/var/log/kubernetes/audit.log\n"+
+			"Or deploy Falco for runtime DB access monitoring:\n"+
+			"  helm install falco falcosecurity/falco --set falco.grpc.enabled=true",
+		soc2("CC7.2"), hipaa("164.312(b)"),
+	)}
+}
+
 func (c *Checker) checkDBNoPublicService() []engine.Finding {
 	services, err := c.client.CoreV1().Services("").List(context.Background(), metav1.ListOptions{})
 	if err != nil {

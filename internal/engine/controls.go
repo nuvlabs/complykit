@@ -67,6 +67,14 @@ var ControlMap = map[string][]ControlRef{
 	"aws_ec2_db_ebs_encrypted":      {ISO27001("A.10.1.1"), PCIDSS("3.5.1")},
 	"aws_ec2_db_no_public_ip":       {ISO27001("A.13.1.3"), PCIDSS("1.3.2")},
 	"aws_ec2_db_sg_exposure":        {ISO27001("A.13.1.1"), PCIDSS("1.2.1")},
+	"aws_ec2_db_cloudwatch_logs":    {ISO27001("A.12.4.1"), PCIDSS("10.2.1")},
+
+	// ── AWS RDS Audit ─────────────────────────────────────────────────────────
+	"aws_rds_audit_logging":         {ISO27001("A.12.4.1"), PCIDSS("10.2.1")},
+	"aws_cloudtrail_rds_events":     {ISO27001("A.12.4.1"), PCIDSS("10.2.1")},
+
+	// ── Kubernetes DB Audit ───────────────────────────────────────────────────
+	"k8s_db_audit_logging":          {ISO27001("A.12.4.1"), PCIDSS("10.2.1")},
 
 	// ── AWS DB Access ─────────────────────────────────────────────────────────
 	"aws_rds_overprivileged_iam":    {ISO27001("A.9.2.3"),  PCIDSS("7.2.1")},

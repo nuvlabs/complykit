@@ -94,6 +94,7 @@ func (c *Checker) Run() ([]engine.Finding, error) {
 	findings = append(findings, c.checkDBNoPublicService()...)
 	findings = append(findings, c.checkDBNotRoot()...)
 	findings = append(findings, c.checkDBSecretNotConfigMap()...)
+	findings = append(findings, c.checkDBAuditLogging()...)
 	return findings, nil
 }
 
